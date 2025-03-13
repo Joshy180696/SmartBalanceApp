@@ -37,7 +37,8 @@
         try
         {
             var httpClient = HttpClientFactory.CreateClient("SmartBalanceApi");
-            var response = await httpClient.DeleteAsync($"http://localhost:5048/api/Expenses/{expense.Id}");
+            // var response = await httpClient.DeleteAsync($"http://localhost:5048/api/Expenses/{expense.Id}");
+            var response = await httpClient.DeleteAsync($"https://smartbalanceapi.onrender.com/api/Expenses/{expense.Id}");
 
             if (response.IsSuccessStatusCode)
             {

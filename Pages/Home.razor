@@ -225,7 +225,8 @@
         try
         {
             var httpClient = HttpClientFactory.CreateClient("SmartBalanceApi");
-            string url = $"http://localhost:5048/api/Expenses/{userId}";
+            // string url = $"http://localhost:5048/api/Expenses/{userId}";
+            string url = $"https://smartbalanceapi.onrender.com/api/Expenses/{userId}";
             if (month.HasValue)
             {
                 url += $"?year={month.Value.Year}&month={month.Value.Month}";

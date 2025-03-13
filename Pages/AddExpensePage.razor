@@ -63,7 +63,8 @@
         try
         {
             var httpClient = HttpClientFactory.CreateClient("SmartBalanceApi");
-            var response = await httpClient.PostAsJsonAsync("http://localhost:5048/api/Expenses/register", expense);
+            // var response = await httpClient.PostAsJsonAsync("http://localhost:5048/api/Expenses/register", expense);
+            var response = await httpClient.PostAsJsonAsync("https://smartbalanceapi.onrender.com/api/Expenses/register", expense);
 
             if (response.IsSuccessStatusCode)
             {

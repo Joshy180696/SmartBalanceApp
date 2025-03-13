@@ -77,8 +77,8 @@
         var httpClient = HttpClientFactory.CreateClient("SmartBalanceApi");
         try
         {
-            // var response = await httpClient.PostAsJsonAsync("https://smartbalanceapi.onrender.com/api/Authentication/login", model);
-            var response = await httpClient.PostAsJsonAsync("http://localhost:5048/api/Authentication/login", model);
+            var response = await httpClient.PostAsJsonAsync("https://smartbalanceapi.onrender.com/api/Authentication/login", model);
+            // var response = await httpClient.PostAsJsonAsync("http://localhost:5048/api/Authentication/login", model);
             var rawResponse = await response.Content.ReadAsStringAsync();
 
             if (response.IsSuccessStatusCode)
