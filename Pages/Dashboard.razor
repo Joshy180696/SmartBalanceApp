@@ -1,0 +1,143 @@
+﻿@page "/dashboard"
+@using Microsoft.AspNetCore.Authorization
+@using SmartBalanceBlazor.Auth
+@using System.Security.Claims
+@using static SmartBalanceBlazor.ViewModels.ExpenseViewModels
+@inject NavigationManager Navigation
+@inject IHttpClientFactory HttpClientFactory
+@inject JwtAuthenticationStateProvider AuthProvider
+@attribute [Authorize]
+
+<PageTitle>Dashboard - SmartBalance</PageTitle>
+
+<RadzenStack AlignItems="AlignItems.Center" JustifyContent="JustifyContent.Center" Style="padding: 20px;">
+    <RadzenHeading Size="H2" Text="Dashboard" Style="color: #3f51b5;" />
+
+    @if (isLoading)
+    {
+        <RadzenText TextStyle="TextStyle.Subtitle1" Style="margin-top: 20px;">
+            Loading chart... 🚀
+        </RadzenText>
+    }
+    else if (monthlyBalances.Any())
+    {
+        <RadzenCard Style="margin-top: 20px; width: 100%; max-width: 800px;">
+            <RadzenHeading Size="H4" Text="Monthly Balance Overview (2025)" Style="margin-bottom: 20px;" />
+            <RadzenChart>
+                <RadzenColumnSeries Data="@monthlyBalances" CategoryProperty="Month" ValueProperty="Balance">
+                    <RadzenSeriesDataLabels Visible="true" />
+                </RadzenColumnSeries>
+                <RadzenCategoryAxis Padding="20">
+                    <RadzenAxisTitle Text="Month" />
+                </RadzenCategoryAxis>
+                <RadzenValueAxis>
+                    <RadzenAxisTitle Text="Balance (€)" />
+                    <RadzenGridLines Visible="true" />
+         @*            <RadzenAxisLine Visible="true" /> *@
+                </RadzenValueAxis>
+            </RadzenChart>
+        </RadzenCard>
+    }
+    else
+    {
+        <RadzenText TextStyle="TextStyle.Subtitle1" Style="margin-top: 20px;">
+            No data available for 2025. Add some expenses to see the chart! 📊
+        </RadzenText>
+    }
+
+    <RadzenButton Click="@(() => Navigation.NavigateTo("/home"))" Text="Back to Home" Style="margin-top: 20px; background-color: #3f51b5; color: white;" />
+</RadzenStack>
+
+@code {
+    private string userId = string.Empty;
+    private decimal monthlyIncome = 0m;
+    private List<MonthlyBalance> monthlyBalances = new List<MonthlyBalance>();
+    private bool isLoading = true;
+
+    // Class to hold monthly balance data for the chart
+    private class MonthlyBalance
+    {
+        public string Month { get; set; }
+        public decimal Balance { get; set; }
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            // Get user info
+            var authState = await AuthProvider.GetAuthenticationStateAsync();
+            if (authState.User.Identity?.IsAuthenticated ?? false)
+            {
+                var claims = authState.User.Claims;
+                var userIdClaim = claims.FirstOrDefault(c => c.Type == ClaimTypes.NameIdentifier || c.Type == "sub");
+                userId = userIdClaim?.Value ?? string.Empty;
+
+                var incomeClaim = claims.FirstOrDefault(c => c.Type == "monthlyIncome" || c.Type == "income");
+                if (incomeClaim != null && decimal.TryParse(incomeClaim.Value, out var income))
+                {
+                    monthlyIncome = income;
+                }
+                else
+                {
+                    monthlyIncome = 0m;
+                }
+
+                if (!string.IsNullOrEmpty(userId))
+                {
+                    await FetchMonthlyBalances();
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            // Handle error (e.g., show notification)
+            Console.WriteLine($"Error initializing dashboard: {ex.Message}");
+        }
+        finally
+        {
+            isLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task FetchMonthlyBalances()
+    {
+        var currentYear = DateTime.Now.Year; // Use 2025 for now
+        monthlyBalances.Clear();
+
+        // Loop through all 12 months
+        for (int month = 1; month <= 12; month++)
+        {
+            var expenses = await FetchExpensesForMonth(userId, currentYear, month);
+            var totalExpenses = expenses?.Sum(e => e.Amount) ?? 0m;
+            var balance = monthlyIncome - totalExpenses;
+
+            monthlyBalances.Add(new MonthlyBalance
+            {
+                Month = new DateTime(currentYear, month, 1).ToString("MMM"),
+                Balance = balance
+            });
+        }
+    }
+
+    private async Task<List<Expenses>> FetchExpensesForMonth(string userId, int year, int month)
+    {
+        try
+        {
+            var httpClient = HttpClientFactory.CreateClient("SmartBalanceApi");
+            string url = $"https://smartbalanceapi.onrender.com/api/Expenses/{userId}?year={year}&month={month}";
+            var response = await httpClient.GetAsync(url);
+
+            if (response.IsSuccessStatusCode)
+            {
+                return await response.Content.ReadFromJsonAsync<List<Expenses>>() ?? new List<Expenses>();
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error fetching expenses for {year}-{month}: {ex.Message}");
+        }
+        return new List<Expenses>();
+    }
+}

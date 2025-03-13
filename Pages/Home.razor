@@ -9,7 +9,7 @@
 @inject NotificationService NotificationService
 @attribute [Authorize]
 
-<PageTitle>Home - Page</PageTitle>
+<PageTitle>HomePage - SmartBalance</PageTitle>
 
 <RadzenStack>
     <RadzenHeading Size="H3" Text="@($"Welcome, {username}!")" />
@@ -29,15 +29,39 @@
     <br />
 
 
+<RadzenScheduler @ref="scheduler" SlotRender="@OnSlotRender" style="height: 768px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); border: 1px solid #e0e0e0;" TItem="Expenses" Data="@expenses" StartProperty="Date" EndProperty="Date" ShowHeader="true"
+                 TextProperty="Description" SelectedIndex="2"
+                 SlotSelect="@OnSlotSelect" AppointmentSelect="@OnAppointmentSelect" AppointmentRender="@OnAppointmentRender" DaySelect="@OnDaySelect"
+                 AppointmentMove="@OnAppointmentMove">
+    <RadzenDayView />
+    <RadzenWeekView />
+    <RadzenMonthView />
+</RadzenScheduler>
 
-    <RadzenScheduler @ref="scheduler" SlotRender="@OnSlotRender" style="height: 768px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); border: 1px solid #e0e0e0;" TItem="Expenses" Data="@expenses" StartProperty="Date" EndProperty="Date" ShowHeader="@showHeader"
-                     TextProperty="Description" SelectedIndex="2"
-                     SlotSelect="@OnSlotSelect" AppointmentSelect="@OnAppointmentSelect" AppointmentRender="@OnAppointmentRender" DaySelect="@OnDaySelect"
-                     AppointmentMove="@OnAppointmentMove">
-        <RadzenDayView />
-        <RadzenWeekView />
-        <RadzenMonthView />
-    </RadzenScheduler>
+
+    <style>
+        /* Hide the Previous/Next/Today buttons */
+        .rz-scheduler-nav-prev-next {
+            display: none !important;
+        }
+
+        /* Center the month label */
+        .rz-scheduler-nav {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        /* Ensure the month label and view buttons are spaced nicely */
+        .rz-scheduler-nav-title {
+            margin-right: 20px; /* Space between the label and view buttons */
+        }
+
+        /* Ensure the scheduler content remains interactive */
+        .rz-scheduler-content {
+            pointer-events: auto !important;
+        }
+    </style>
 
     @code {
     private string username = "User";
@@ -74,17 +98,18 @@
         }
     }
 
-    private async Task OnNavigate(DateTime startDate, DateTime endDate)
-    {
-        Console.WriteLine($"OnNavigate triggered - StartDate: {startDate:yyyy-MM-dd}, EndDate: {endDate:yyyy-MM-dd}");
-        var newMonth = new DateTime(startDate.Year, startDate.Month, 1);
-        Console.WriteLine($"New month calculated: {newMonth:yyyy-MM}, Current month: {currentMonth:yyyy-MM}");
-        if (newMonth != currentMonth)
-        {
-            currentMonth = newMonth;
-            await FetchExpensesForCurrentMonth();
-        }
-    }
+    // For now keep it simple and dont allow toggle months
+    // private async Task OnNavigate(DateTime startDate, DateTime endDate)
+    // {
+    //     Console.WriteLine($"OnNavigate triggered - StartDate: {startDate:yyyy-MM-dd}, EndDate: {endDate:yyyy-MM-dd}");
+    //     var newMonth = new DateTime(startDate.Year, startDate.Month, 1);
+    //     Console.WriteLine($"New month calculated: {newMonth:yyyy-MM}, Current month: {currentMonth:yyyy-MM}");
+    //     if (newMonth != currentMonth)
+    //     {
+    //         currentMonth = newMonth;
+    //         await FetchExpensesForCurrentMonth();
+    //     }
+    // }
 
     async Task OnSlotSelect(SchedulerSlotSelectEventArgs args)
     {

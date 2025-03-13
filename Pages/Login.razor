@@ -15,6 +15,9 @@
 
     <RadzenCard Style="width: 100%; max-width: 350px; padding: 24px; border-radius: 15px; background: white; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
         <RadzenStack Orientation="Orientation.Vertical" AlignItems="AlignItems.Center" JustifyContent="JustifyContent.Center" Gap="12px">
+
+            <!-- Demo Login Button -->
+            <RadzenButton Click="@LoginWithDemo" Text="Login with Demo User" Style="width: 100%; margin-bottom: 12px; background-color: #4caf50; color: white; padding: 10px; border-radius: 25px; font-weight: 600;" />
             <!-- Header -->
             <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="8px">
                 <RadzenIcon Icon="lock" Style="font-size: 24px; color: #3f51b5;" />
@@ -67,6 +70,17 @@
     private string errorMessage = string.Empty;
     private bool buttonHovered = false;
     private bool isLoading = false;
+
+
+    private async Task LoginWithDemo()
+    {
+        // Pre-fill with demo credentials
+        model.UserName = "UserDemo";
+        model.Password = "UserDemo2025";
+
+        // Trigger the login process
+        await LoginUser();
+    }
 
     private async Task LoginUser()
     {
