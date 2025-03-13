@@ -14,9 +14,9 @@ builder.Services.AddRadzenComponents();
 builder.Services.AddHttpClient("SmartBalanceApi", client =>
 {
     //Localhost
-    client.BaseAddress = new Uri("http://localhost:5048/");
+    //client.BaseAddress = new Uri("http://localhost:5048/");
     // Live
-    //client.BaseAddress = new Uri("https://smartbalanceapi.onrender.com");
+    client.BaseAddress = new Uri("https://smartbalanceapi.onrender.com");
 
     //dotnet publish -c Release --output ./output
 });

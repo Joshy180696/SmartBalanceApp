@@ -90,39 +90,45 @@
         {
             // var response = await httpClient.PostAsJsonAsync("http://localhost:5048/api/Authentication/register", model);
             var response = await httpClient.PostAsJsonAsync("https://smartbalanceapi.onrender.com/api/Authentication/register", model);
-
             var rawResponse = await response.Content.ReadAsStringAsync();
+            System.Diagnostics.Debug.WriteLine($"API Response: {rawResponse}");
 
             if (response.IsSuccessStatusCode)
             {
                 var result = await response.Content.ReadFromJsonAsync<AuthViewModels.RegisterResponseModel>();
+                System.Diagnostics.Debug.WriteLine("Success - Attempting to show notification");
                 // Show success notification
                 NotificationService.Notify(new NotificationMessage
                 {
-                    Severity = NotificationSeverity.Success,
-                    Summary = "Registration Successful!",
-                    Detail = "Your account has been created. Redirecting to login...",
-                    Duration = 3000, // Show for 3 seconds
-                    Style = "background-color: #4caf50; color: white; border-radius: 5px; padding: 10px;" // Green success style
+                        Severity = NotificationSeverity.Success,
+                        Summary = "Success",
+                        Detail = "User created, you can now login!",
+                        Duration = 4000
                 });
-                // Delay navigation to let the user see the notification
-                await Task.Delay(3500); // Wait 3.5 seconds (slightly more than Duration)
+
+                System.Diagnostics.Debug.WriteLine("Notification triggered");
+                // Increased delay to 4.5 seconds
+                await Task.Delay(4500);
+                System.Diagnostics.Debug.WriteLine("Delay completed, navigating to /login");
                 Navigation.NavigateTo("/login");
             }
             else if (response.StatusCode == System.Net.HttpStatusCode.BadRequest)
             {
                 var error = await response.Content.ReadFromJsonAsync<AuthViewModels.RegisterErrorResponseModel>();
                 errorMessage = error?.Message ?? "Registration failed.";
+                System.Diagnostics.Debug.WriteLine($"Error: {errorMessage}");
             }
         }
         catch (Exception ex)
         {
             errorMessage = "An error occurred: " + ex.Message;
+            System.Diagnostics.Debug.WriteLine($"Exception: {ex.Message}");
         }
         finally
         {
             isLoading = false; // Stop loading
             StateHasChanged(); // Update UI to hide spinner
+            System.Diagnostics.Debug.WriteLine("Loading stopped, state updated");
         }
     }
 }
