@@ -13,18 +13,25 @@
 
 <RadzenStack>
     <RadzenHeading Size="H3" Text="@($"Welcome, {username}!")" />
-    <RadzenStack Orientation="Orientation.Horizontal" Gap="20px">
-        <RadzenLabel Text="@($"Monthly Income: {monthlyIncome:C}")" />
-        <RadzenLabel Text="@($"Remaining Balance: {TotalBalance:C}")" Style="@(TotalBalance < 0 ? "color: #d32f2f;" : "color: #3f51b5;")" />
-    </RadzenStack>
+    <RadzenCard Style="margin-bottom: 20px; padding: 15px;">
+        <RadzenStack Orientation="Orientation.Horizontal" Gap="20px">
+            <RadzenLabel Text="@($"Monthly Income: {monthlyIncome:C}")" />
+            <RadzenLabel Text="@($"Remaining Balance: {TotalBalance:C}")" Style="@(TotalBalance < 0 ? "color: #d32f2f;" : "color: #3f51b5;")" />
+        </RadzenStack>
+    </RadzenCard>
+
     @if (!expenses.Any())
     {
         <RadzenText TextStyle="TextStyle.Subtitle2" Text="You have no expenses for this month. Click a day to add one!" />
     }
     </RadzenStack>
 
-    <RadzenScheduler @ref="scheduler" SlotRender="@OnSlotRender" OnNavigate="@OnNavigate" style="height: 768px;" TItem="Expenses" Data="@expenses" StartProperty="Date" EndProperty="Date" ShowHeader="@showHeader"
-                     TextProperty="Description"
+    <br />
+
+
+
+    <RadzenScheduler @ref="scheduler" SlotRender="@OnSlotRender" style="height: 768px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); border: 1px solid #e0e0e0;" TItem="Expenses" Data="@expenses" StartProperty="Date" EndProperty="Date" ShowHeader="@showHeader"
+                     TextProperty="Description" SelectedIndex="2"
                      SlotSelect="@OnSlotSelect" AppointmentSelect="@OnAppointmentSelect" AppointmentRender="@OnAppointmentRender" DaySelect="@OnDaySelect"
                      AppointmentMove="@OnAppointmentMove">
         <RadzenDayView />
@@ -122,7 +129,7 @@
                     Summary = "Error",
                     Detail = "User ID not found. Please log in again.",
                     Duration = 4000
-                });
+            });
         }
     }
 
@@ -229,7 +236,19 @@
             if (response.IsSuccessStatusCode)
             {
                 expenses = await response.Content.ReadFromJsonAsync<List<Expenses>>() ?? new List<Expenses>();
+                // Normalize the time to 9 AM
+                expenses = expenses.Select(e => new Expenses
+                    {
+                        Id = e.Id,
+                        Description = e.Description,
+                        Amount = e.Amount,
+                        Date = new DateTime(e.Date.Year, e.Date.Month, e.Date.Day, 9, 0, 0)
+                    }).ToList();
                 System.Diagnostics.Debug.WriteLine($"Fetched expenses for {url} - Count: {expenses.Count}");
+                foreach (var expense in expenses)
+                {
+                    System.Diagnostics.Debug.WriteLine($"Expense: {expense.Description}, Date: {expense.Date:yyyy-MM-dd HH:mm:ss}");
+                }
                 if (!expenses.Any())
                 {
                     NotificationService.Notify(new NotificationMessage
@@ -298,6 +317,7 @@
             System.Diagnostics.Debug.WriteLine($"Fetching expenses for month: {currentMonth:yyyy-MM}");
             await FetchExpensesForUser(userId, currentMonth);
             System.Diagnostics.Debug.WriteLine($"After fetch - Expenses count: {expenses.Count}, TotalBalance: {TotalBalance:C}");
+
         }
         finally
         {
