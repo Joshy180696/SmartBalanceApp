@@ -1,0 +1,101 @@
+﻿@page "/addexpensepage"
+@using static SmartBalanceBlazor.ViewModels.ExpenseViewModels
+@inject DialogService DialogService
+@inject IHttpClientFactory HttpClientFactory
+@inject NotificationService NotificationService
+
+<RadzenCard Style="padding: 20px;">
+    <EditForm Model="@expense" OnValidSubmit="@RegisterExpense">
+        <DataAnnotationsValidator />
+        <RadzenStack Gap="12px">
+            <RadzenTextBox @bind-Value="@expense.Description" Placeholder="Description" Style="width: 100%;" />
+            <ValidationMessage For="@(() => expense.Description)" />
+            
+            <RadzenNumeric @bind-Value="@expense.Amount" Placeholder="Amount" Min="0" Style="width: 100%;" />
+            <ValidationMessage For="@(() => expense.Amount)" />
+            
+            <RadzenDatePicker @bind-Value="@expense.CreatedAt" Placeholder="Date" Style="width: 100%;" Disabled="true" />
+            <ValidationMessage For="@(() => expense.CreatedAt)" />
+
+            <RadzenButton ButtonType="ButtonType.Submit" Text="Add Expense" Style="width: 100%; background-color: #3f51b5; color: white;" />
+            <RadzenButton ButtonType="ButtonType.Button" Text="Cancel" Click="@(() => DialogService.Close())" Style="width: 100%; background-color: #d32f2f; color: white;" />
+        </RadzenStack>
+    </EditForm>
+</RadzenCard>
+
+@code {
+    [Parameter]
+    public string UserId { get; set; } = string.Empty;
+
+    [Parameter]
+    public DateTime StartDate { get; set; }
+
+    private AddExpense expense = new AddExpense();
+
+    protected override void OnParametersSet()
+    {
+        expense = new AddExpense
+        {
+            UserId = UserId,
+            CreatedAt = StartDate // Set the selected date from the scheduler
+        };
+    }
+
+    private async Task RegisterExpense()
+    {
+
+        var currentDate = DateTime.UtcNow;
+        var selectedYearMonth = new DateTime(expense.CreatedAt.Year, expense.CreatedAt.Month, 1);
+        var currentYearMonth = new DateTime(currentDate.Year, currentDate.Month, 1);
+
+        if (selectedYearMonth < currentYearMonth)
+        {
+            NotificationService.Notify(new NotificationMessage
+                {
+                    Severity = NotificationSeverity.Warning,
+                    Summary = "Invalid Date",
+                    Detail = "You cannot add expenses for past months.",
+                    Duration = 4000
+                });
+            return; // Stop the save process
+        }
+
+        try
+        {
+            var httpClient = HttpClientFactory.CreateClient("SmartBalanceApi");
+            var response = await httpClient.PostAsJsonAsync("http://localhost:5048/api/Expenses/register", expense);
+
+            if (response.IsSuccessStatusCode)
+            {
+                NotificationService.Notify(new NotificationMessage
+                {
+                    Severity = NotificationSeverity.Success,
+                    Summary = "Success",
+                    Detail = "Expense added successfully!",
+                    Duration = 4000
+                });
+                DialogService.Close(true); // Close the dialog
+            }
+            else
+            {
+                NotificationService.Notify(new NotificationMessage
+                {
+                    Severity = NotificationSeverity.Error,
+                    Summary = "Error",
+                    Detail = "Failed to add expense.",
+                    Duration = 4000
+                });
+            }
+        }
+        catch (Exception ex)
+        {
+            NotificationService.Notify(new NotificationMessage
+            {
+                Severity = NotificationSeverity.Error,
+                Summary = "Error",
+                Detail = "Failed to add expense.",
+                Duration = 4000
+            });
+        }
+    }
+}

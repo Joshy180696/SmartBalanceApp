@@ -1,0 +1,309 @@
+﻿@page "/home"
+@using Microsoft.AspNetCore.Authorization
+@using SmartBalanceBlazor.Auth
+@using System.Security.Claims
+@using static SmartBalanceBlazor.ViewModels.ExpenseViewModels
+@inject JwtAuthenticationStateProvider AuthProvider
+@inject IHttpClientFactory HttpClientFactory
+@inject DialogService DialogService
+@inject NotificationService NotificationService
+@attribute [Authorize]
+
+<PageTitle>Home - Page</PageTitle>
+
+<RadzenStack>
+    <RadzenHeading Size="H3" Text="@($"Welcome, {username}!")" />
+    <RadzenStack Orientation="Orientation.Horizontal" Gap="20px">
+        <RadzenLabel Text="@($"Monthly Income: {monthlyIncome:C}")" />
+        <RadzenLabel Text="@($"Remaining Balance: {TotalBalance:C}")" Style="@(TotalBalance < 0 ? "color: #d32f2f;" : "color: #3f51b5;")" />
+    </RadzenStack>
+    @if (!expenses.Any())
+    {
+        <RadzenText TextStyle="TextStyle.Subtitle2" Text="You have no expenses for this month. Click a day to add one!" />
+    }
+    </RadzenStack>
+
+    <RadzenScheduler @ref="scheduler" SlotRender="@OnSlotRender" OnNavigate="@OnNavigate" style="height: 768px;" TItem="Expenses" Data="@expenses" StartProperty="Date" EndProperty="Date" ShowHeader="@showHeader"
+                     TextProperty="Description"
+                     SlotSelect="@OnSlotSelect" AppointmentSelect="@OnAppointmentSelect" AppointmentRender="@OnAppointmentRender" DaySelect="@OnDaySelect"
+                     AppointmentMove="@OnAppointmentMove">
+        <RadzenDayView />
+        <RadzenWeekView />
+        <RadzenMonthView />
+    </RadzenScheduler>
+
+    @code {
+    private string username = "User";
+    private string userId = string.Empty;
+    private decimal monthlyIncome = 0m;
+    private RadzenScheduler<Expenses> scheduler;
+    private List<Expenses> expenses = new List<Expenses>();
+    private bool showHeader = true;
+    private DateTime currentMonth = DateTime.Now;
+    private bool isFetching = false;
+    private DateTime? lastFetchedMonth = null;
+
+    private decimal TotalBalance => monthlyIncome - (expenses?.Sum(e => e.Amount) ?? 0);
+
+    void OnSlotRender(SchedulerSlotRenderEventArgs args)
+    {
+        var currentDate = DateTime.Now;
+        var slotYearMonth = new DateTime(args.Start.Year, args.Start.Month, 1);
+        var currentYearMonth = new DateTime(currentDate.Year, currentDate.Month, 1);
+
+        if (args.View.Text == "Month" && args.Start.Date == DateTime.Today)
+        {
+            args.Attributes["style"] = "background: var(--rz-scheduler-highlight-background-color, rgba(255,220,40,.2));";
+        }
+
+        if ((args.View.Text == "Week" || args.View.Text == "Day") && args.Start.Hour > 8 && args.Start.Hour < 19)
+        {
+            args.Attributes["style"] = "background: var(--rz-scheduler-highlight-background-color, rgba(255,220,40,.2));";
+        }
+
+        if (slotYearMonth < currentYearMonth || slotYearMonth > currentYearMonth)
+        {
+            args.Attributes["style"] = (args.Attributes.ContainsKey("style") ? args.Attributes["style"] + ";" : "") + "background: #e0e0e0; opacity: 0.5; pointer-events: none;";
+        }
+    }
+
+    private async Task OnNavigate(DateTime startDate, DateTime endDate)
+    {
+        Console.WriteLine($"OnNavigate triggered - StartDate: {startDate:yyyy-MM-dd}, EndDate: {endDate:yyyy-MM-dd}");
+        var newMonth = new DateTime(startDate.Year, startDate.Month, 1);
+        Console.WriteLine($"New month calculated: {newMonth:yyyy-MM}, Current month: {currentMonth:yyyy-MM}");
+        if (newMonth != currentMonth)
+        {
+            currentMonth = newMonth;
+            await FetchExpensesForCurrentMonth();
+        }
+    }
+
+    async Task OnSlotSelect(SchedulerSlotSelectEventArgs args)
+    {
+        System.Diagnostics.Debug.WriteLine($"Slot selected at: {args.Start}");
+        var selectedMonth = new DateTime(args.Start.Year, args.Start.Month, 1);
+        var currentDate = DateTime.Now;
+        var currentYearMonth = new DateTime(currentDate.Year, currentDate.Month, 1);
+
+        if (selectedMonth != currentYearMonth)
+        {
+            NotificationService.Notify(new NotificationMessage
+                {
+                    Severity = NotificationSeverity.Warning,
+                    Summary = "Invalid Date",
+                    Detail = "You can only add expenses for the current month.",
+                    Duration = 4000
+                });
+            return;
+        }
+
+        NotificationService.Notify(new NotificationMessage
+            {
+                Severity = NotificationSeverity.Info,
+                Summary = "Slot Selected",
+                Detail = $"Date: {args.Start:dd/MM/yyyy}",
+                Duration = 2000
+            });
+
+        if (!string.IsNullOrEmpty(userId))
+        {
+            var startDate = args.Start.Date;
+            await DialogService.OpenAsync<AddExpensePage>("Add New Expense",
+                new Dictionary<string, object> { { "UserId", userId }, { "StartDate", startDate } },
+                new DialogOptions { Width = "400px", Height = "auto", CloseDialogOnOverlayClick = true });
+            await FetchExpensesForUser(userId, currentMonth);
+        }
+        else
+        {
+            NotificationService.Notify(new NotificationMessage
+                {
+                    Severity = NotificationSeverity.Warning,
+                    Summary = "Error",
+                    Detail = "User ID not found. Please log in again.",
+                    Duration = 4000
+                });
+        }
+    }
+
+    async Task OnAppointmentSelect(SchedulerAppointmentSelectEventArgs<Expenses> args)
+    {
+        var expense = args.Data;
+        await DialogService.OpenAsync<ViewExpense>("View Expense",
+            new Dictionary<string, object> { { "Expense", expense }, { "UserId", userId } },
+            new DialogOptions { Width = "400px", Height = "auto", CloseDialogOnOverlayClick = true });
+        await FetchExpensesForUser(userId, currentMonth);
+    }
+
+    void OnAppointmentRender(SchedulerAppointmentRenderEventArgs<Expenses> args)
+    {
+        args.Attributes["style"] = "background: #3f51b5; color: white;";
+        args.Attributes["title"] = $"Expense: {args.Data.Description} - Amount: {args.Data.Amount:C}";
+    }
+
+    void OnDaySelect(SchedulerDaySelectEventArgs args)
+    {
+    }
+
+    async Task OnAppointmentMove(SchedulerAppointmentMoveEventArgs args)
+    {
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            var authState = await AuthProvider.GetAuthenticationStateAsync();
+            if (authState.User.Identity?.IsAuthenticated ?? false)
+            {
+                var claims = authState.User.Claims;
+                var userNameClaim = claims.FirstOrDefault(c => c.Type == ClaimTypes.Name || c.Type == "unique_name" || c.Type == "username");
+                username = userNameClaim?.Value ?? "User";
+
+                var userIdClaim = claims.FirstOrDefault(c => c.Type == ClaimTypes.NameIdentifier || c.Type == "sub");
+                userId = userIdClaim?.Value ?? string.Empty;
+
+                var incomeClaim = claims.FirstOrDefault(c => c.Type == "monthlyIncome" || c.Type == "income");
+                if (incomeClaim != null && decimal.TryParse(incomeClaim.Value, out var income))
+                {
+                    monthlyIncome = income;
+                }
+                else
+                {
+                    NotificationService.Notify(new NotificationMessage
+                        {
+                            Severity = NotificationSeverity.Warning,
+                            Summary = "Warning",
+                            Detail = "Monthly income not found in user profile.",
+                            Duration = 4000
+                        });
+                }
+
+                if (!string.IsNullOrEmpty(userId))
+                {
+                    currentMonth = DateTime.Now;
+                    await FetchExpensesForUser(userId, currentMonth);
+                }
+                else
+                {
+                    NotificationService.Notify(new NotificationMessage
+                        {
+                            Severity = NotificationSeverity.Warning,
+                            Summary = "Error",
+                            Detail = "User ID not found. Please log in again.",
+                            Duration = 4000
+                        });
+                }
+            }
+            else
+            {
+                username = "Guest";
+            }
+        }
+        catch (Exception ex)
+        {
+            username = "User";
+            NotificationService.Notify(new NotificationMessage
+                {
+                    Severity = NotificationSeverity.Error,
+                    Summary = "Error",
+                    Detail = "Failed to initialize user data.",
+                    Duration = 4000
+                });
+        }
+    }
+
+    private async Task FetchExpensesForUser(string userId, DateTime? month = null)
+    {
+        try
+        {
+            var httpClient = HttpClientFactory.CreateClient("SmartBalanceApi");
+            string url = $"http://localhost:5048/api/Expenses/{userId}";
+            if (month.HasValue)
+            {
+                url += $"?year={month.Value.Year}&month={month.Value.Month}";
+            }
+
+            var response = await httpClient.GetAsync(url);
+
+            if (response.IsSuccessStatusCode)
+            {
+                expenses = await response.Content.ReadFromJsonAsync<List<Expenses>>() ?? new List<Expenses>();
+                System.Diagnostics.Debug.WriteLine($"Fetched expenses for {url} - Count: {expenses.Count}");
+                if (!expenses.Any())
+                {
+                    NotificationService.Notify(new NotificationMessage
+                        {
+                            Severity = NotificationSeverity.Info,
+                            Summary = "No Expenses",
+                            Detail = "You have no expenses for this month. Add some by clicking a day!",
+                            Duration = 4000
+                        });
+                }
+                await scheduler.Reload();
+            }
+            else
+            {
+                if (response.StatusCode == System.Net.HttpStatusCode.NotFound || response.StatusCode == System.Net.HttpStatusCode.NoContent)
+                {
+                    expenses = new List<Expenses>();
+                    System.Diagnostics.Debug.WriteLine($"No expenses found for {url}");
+                    NotificationService.Notify(new NotificationMessage
+                        {
+                            Severity = NotificationSeverity.Info,
+                            Summary = "No Expenses",
+                            Detail = "You have no expenses for this month. Add some by clicking a day!",
+                            Duration = 4000
+                        });
+                }
+                else
+                {
+                    NotificationService.Notify(new NotificationMessage
+                        {
+                            Severity = NotificationSeverity.Error,
+                            Summary = "Error",
+                            Detail = "Failed to load expenses.",
+                            Duration = 4000
+                        });
+                    expenses = new List<Expenses>();
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            NotificationService.Notify(new NotificationMessage
+                {
+                    Severity = NotificationSeverity.Error,
+                    Summary = "Error",
+                    Detail = "Failed to load expenses.",
+                    Duration = 4000
+                });
+            expenses = new List<Expenses>();
+        }
+        finally
+        {
+            StateHasChanged(); // Force re-render to update TotalBalance
+        }
+    }
+
+    private async Task FetchExpensesForCurrentMonth()
+    {
+        System.Diagnostics.Debug.WriteLine($"FetchExpensesForCurrentMonth - isFetching: {isFetching}, lastFetchedMonth: {lastFetchedMonth?.ToString("yyyy-MM") ?? "null"}, currentMonth: {currentMonth:yyyy-MM}");
+        if (isFetching || lastFetchedMonth == currentMonth) return;
+
+        isFetching = true;
+        lastFetchedMonth = currentMonth;
+        try
+        {
+            System.Diagnostics.Debug.WriteLine($"Fetching expenses for month: {currentMonth:yyyy-MM}");
+            await FetchExpensesForUser(userId, currentMonth);
+            System.Diagnostics.Debug.WriteLine($"After fetch - Expenses count: {expenses.Count}, TotalBalance: {TotalBalance:C}");
+        }
+        finally
+        {
+            isFetching = false;
+        }
+    }
+}
+
+

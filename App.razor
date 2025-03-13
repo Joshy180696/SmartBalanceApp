@@ -1,0 +1,59 @@
+﻿@using Microsoft.AspNetCore.Components.Authorization
+@using SmartBalanceBlazor.Auth
+
+<CascadingAuthenticationState>
+    <Router AppAssembly="@typeof(App).Assembly">
+        <Found Context="routeData">
+            <AuthorizeRouteView RouteData="@routeData" DefaultLayout="@typeof(MainLayout)">
+                <NotAuthorized>
+                    <RedirectToLogin />
+                </NotAuthorized>
+            </AuthorizeRouteView>
+        </Found>
+        <NotFound>
+            <LayoutView Layout="@typeof(MainLayout)">
+                <MudText Typo="Typo.h6" Color="Color.Error">404 - Page Not Found</MudText>
+            </LayoutView>
+        </NotFound>
+    </Router>
+</CascadingAuthenticationState>
+
+
+@code{
+    [Inject] NavigationManager Navigation { get; set; }
+    [Inject] JwtAuthenticationStateProvider AuthProvider { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthProvider.GetAuthenticationStateAsync();
+        var user = authState.User;
+
+        // Ensure the initial navigation happens
+        if (Navigation.Uri == Navigation.BaseUri) // Only redirect if on the root URL
+        {
+            if (user?.Identity?.IsAuthenticated == true)
+            {
+                Navigation.NavigateTo("/home");
+            }
+            else
+            {
+                Navigation.NavigateTo("/login");
+            }
+        }
+        // Additional check for unauthorized access to /home
+        else if (!user?.Identity?.IsAuthenticated == true && Navigation.Uri.EndsWith("home"))
+        {
+            Navigation.NavigateTo("/login");
+        }
+    }
+
+    private class RedirectToLogin : ComponentBase
+    {
+        [Inject] NavigationManager Navigation { get; set; }
+
+        protected override void OnInitialized()
+        {
+            Navigation.NavigateTo("/login");
+        }
+    }
+}

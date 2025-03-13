@@ -1,0 +1,75 @@
+﻿@page "/viewexpense"
+@using static SmartBalanceBlazor.ViewModels.ExpenseViewModels
+@inject DialogService DialogService
+@inject IHttpClientFactory HttpClientFactory
+@inject NotificationService NotificationService
+
+<RadzenCard Style="padding: 20px;">
+    @if (expense != null)
+    {
+        <RadzenStack Gap="12px">
+            <RadzenLabel Text="@($"Description: {expense.Description}")" />
+            <RadzenLabel Text="@($"Amount: {expense.Amount:C}")" />
+            <RadzenLabel Text="@($"Date: {expense.Date:dd/MM/yyyy HH:mm}")" />
+
+            <RadzenButton ButtonType="ButtonType.Button" Text="Delete Expense" Click="@DeleteExpense" Style="width: 100%; background-color: #d32f2f; color: white;" />
+            <RadzenButton ButtonType="ButtonType.Button" Text="Close" Click="@(() => DialogService.Close())" Style="width: 100%; background-color: #3f51b5; color: white;" />
+        </RadzenStack>
+    }
+</RadzenCard>
+
+@code {
+    [Parameter]
+    public Expenses Expense { get; set; }
+
+    [Parameter]
+    public string UserId { get; set; } = string.Empty;
+
+    private Expenses expense;
+
+    protected override void OnParametersSet()
+    {
+        expense = Expense ?? new Expenses();
+    }
+
+    private async Task DeleteExpense()
+    {
+        try
+        {
+            var httpClient = HttpClientFactory.CreateClient("SmartBalanceApi");
+            var response = await httpClient.DeleteAsync($"http://localhost:5048/api/Expenses/{expense.Id}");
+
+            if (response.IsSuccessStatusCode)
+            {
+                NotificationService.Notify(new NotificationMessage
+                    {
+                        Severity = NotificationSeverity.Success,
+                        Summary = "Success",
+                        Detail = "Expense deleted successfully!",
+                        Duration = 4000
+                    });
+                DialogService.Close(true); // Close the dialog
+            }
+            else
+            {
+                NotificationService.Notify(new NotificationMessage
+                    {
+                        Severity = NotificationSeverity.Error,
+                        Summary = "Error",
+                        Detail = "Failed to delete expense.",
+                        Duration = 4000
+                    });
+            }
+        }
+        catch (Exception ex)
+        {
+            NotificationService.Notify(new NotificationMessage
+                {
+                    Severity = NotificationSeverity.Error,
+                    Summary = "Error",
+                    Detail = "Failed to delete expense.",
+                    Duration = 4000
+                });
+        }
+    }
+}
