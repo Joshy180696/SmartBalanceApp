@@ -13,13 +13,13 @@ builder.Services.AddRadzenComponents();
 
 builder.Services.AddHttpClient("SmartBalanceApi", client =>
 {
-    //Localhost
-    //client.BaseAddress = new Uri("http://localhost:5048/");
+  
     // Live
     client.BaseAddress = new Uri("https://smartbalanceapi.onrender.com");
 
     //dotnet publish -c Release --output ./output
-});
+})
+.AddHttpMessageHandler<TokenHandler>(); // Add the custom handler
 
 builder.Services.AddBlazoredLocalStorage();
 builder.Services.AddScoped<JwtAuthenticationStateProvider>();

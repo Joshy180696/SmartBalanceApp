@@ -7,6 +7,7 @@
 @inject IHttpClientFactory HttpClientFactory
 @inject DialogService DialogService
 @inject NotificationService NotificationService
+@inject NavigationManager Navigation
 @attribute [Authorize]
 
 <PageTitle>HomePage - SmartBalance</PageTitle>
@@ -250,7 +251,6 @@
         try
         {
             var httpClient = HttpClientFactory.CreateClient("SmartBalanceApi");
-            // string url = $"http://localhost:5048/api/Expenses/{userId}";
             string url = $"https://smartbalanceapi.onrender.com/api/Expenses/{userId}";
             if (month.HasValue)
             {
@@ -262,7 +262,6 @@
             if (response.IsSuccessStatusCode)
             {
                 expenses = await response.Content.ReadFromJsonAsync<List<Expenses>>() ?? new List<Expenses>();
-                // Normalize the time to 9 AM
                 expenses = expenses.Select(e => new Expenses
                     {
                         Id = e.Id,
@@ -301,6 +300,18 @@
                             Duration = 4000
                         });
                 }
+                else if (response.StatusCode == System.Net.HttpStatusCode.Unauthorized)
+                {
+                    NotificationService.Notify(new NotificationMessage
+                        {
+                            Severity = NotificationSeverity.Error,
+                            Summary = "Unauthorized",
+                            Detail = "Your session has expired. Please log in again.",
+                            Duration = 4000
+                        });
+                    await AuthProvider.LogoutAsync();
+                    Navigation.NavigateTo("/login");
+                }
                 else
                 {
                     NotificationService.Notify(new NotificationMessage
@@ -327,7 +338,7 @@
         }
         finally
         {
-            StateHasChanged(); // Force re-render to update TotalBalance
+            StateHasChanged();
         }
     }
 
