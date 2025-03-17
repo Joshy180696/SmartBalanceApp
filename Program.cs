@@ -12,14 +12,9 @@ var builder = WebAssemblyHostBuilder.CreateDefault(args);
 builder.Services.AddRadzenComponents();
 
 builder.Services.AddHttpClient("SmartBalanceApi", client =>
-{
-  
-    // Live
-    client.BaseAddress = new Uri("https://smartbalanceapi.onrender.com");
+    client.BaseAddress = new Uri("https://smartbalanceapi.onrender.com/"))
+    .AddHttpMessageHandler<TokenHandler>();
 
-    //dotnet publish -c Release --output ./output
-})
-.AddHttpMessageHandler<TokenHandler>(); // Add the custom handler
 
 builder.Services.AddBlazoredLocalStorage();
 builder.Services.AddScoped<TokenHandler>();

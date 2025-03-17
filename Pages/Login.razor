@@ -99,7 +99,9 @@
             {
                 var result = await response.Content.ReadFromJsonAsync<LoginResponseModel>();
                 await LocalStorage.SetItemAsync("refreshToken", result.RefreshToken);
+                await LocalStorage.SetItemAsync("userName", model.UserName); // Store username
                 await AuthProvider.LoginAsync(result.AccessToken);
+
                 NavigationManager.NavigateTo("/home");
             }
             else

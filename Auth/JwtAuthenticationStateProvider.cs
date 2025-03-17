@@ -31,13 +31,6 @@ namespace SmartBalanceBlazor.Auth
                 var handler = new JwtSecurityTokenHandler();
                 var jwtToken = handler.ReadJwtToken(token);
 
-                // Check if token is expired
-                if (jwtToken.ValidTo < DateTime.UtcNow)
-                {
-                    await _localStorage.RemoveItemAsync("authToken");
-                    return new AuthenticationState(new ClaimsPrincipal(new ClaimsIdentity()));
-                }
-
                 var httpClient = _httpClientFactory.CreateClient("SmartBalanceApi");
                 httpClient.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
 
@@ -47,7 +40,7 @@ namespace SmartBalanceBlazor.Auth
             }
             catch (Exception)
             {
-                // If token parsing fails, treat as logged out
+                // If token parsing fails (e.g., invalid format), treat as logged out
                 await _localStorage.RemoveItemAsync("authToken");
                 return new AuthenticationState(new ClaimsPrincipal(new ClaimsIdentity()));
             }
@@ -62,6 +55,8 @@ namespace SmartBalanceBlazor.Auth
         public async Task LogoutAsync()
         {
             await _localStorage.RemoveItemAsync("authToken");
+            await _localStorage.RemoveItemAsync("refreshToken");
+            await _localStorage.RemoveItemAsync("userName"); // Clear username
             NotifyAuthenticationStateChanged(GetAuthenticationStateAsync());
         }
 

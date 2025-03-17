@@ -1,9 +1,11 @@
-﻿@using SmartBalanceBlazor.Auth
+﻿@using Blazored.LocalStorage
+@using SmartBalanceBlazor.Auth
 @inherits LayoutComponentBase
 @inject NavigationManager Navigation
 @inject JwtAuthenticationStateProvider AuthProvider
 @using Radzen
 @using Radzen.Blazor
+@inject ILocalStorageService LocalStorage
 
 <RadzenNotification />
 <RadzenDialog />
@@ -58,6 +60,9 @@
 
     private async Task Logout()
     {
+        await LocalStorage.RemoveItemAsync("authToken");
+        await LocalStorage.RemoveItemAsync("refreshToken");
+
         await AuthProvider.LogoutAsync();
         Navigation.NavigateTo("/login");
     }

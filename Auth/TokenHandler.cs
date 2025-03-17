@@ -1,9 +1,7 @@
 ﻿using Blazored.LocalStorage;
-using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.AspNetCore.Components;
-using System.IdentityModel.Tokens.Jwt;
+using System.Net.Http;
 using System.Net.Http.Json;
-using System.Security.Claims;
 
 namespace SmartBalanceBlazor.Auth
 {
@@ -32,9 +30,8 @@ namespace SmartBalanceBlazor.Auth
 
             if (response.StatusCode == System.Net.HttpStatusCode.Unauthorized)
             {
-                // Attempt to refresh token
                 var refreshToken = await _localStorage.GetItemAsync<string>("refreshToken");
-                var userName = (await GetAuthenticationStateAsync()).User.Identity?.Name;
+                var userName = await _localStorage.GetItemAsync<string>("userName");
 
                 if (!string.IsNullOrEmpty(refreshToken) && !string.IsNullOrEmpty(userName))
                 {
@@ -44,31 +41,22 @@ namespace SmartBalanceBlazor.Auth
                     if (refreshResponse.IsSuccessStatusCode)
                     {
                         var result = await refreshResponse.Content.ReadFromJsonAsync<RefreshTokenResponse>();
-                        await _localStorage.SetItemAsync("authToken", result.Token);
-                        await _localStorage.SetItemAsync("refreshToken", result.RefreshToken);
+                        await _localStorage.SetItemAsync("authToken", result.token); // Note: Use 'token' to match the server response
+                        await _localStorage.SetItemAsync("refreshToken", result.refreshToken); // Note: Use 'refreshToken' to match the server response
 
-                        // Retry the original request with the new token
-                        request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", result.Token);
-                        return await base.SendAsync(request, cancellationToken);
+                        request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", result.token);
+                        return await base.SendAsync(request, cancellationToken); // Retry the original request
                     }
                 }
 
-                // If refresh fails, redirect to login
+                // If refresh fails, clear storage and redirect
+                await _localStorage.RemoveItemAsync("authToken");
+                await _localStorage.RemoveItemAsync("refreshToken");
+                await _localStorage.RemoveItemAsync("userName");
                 _navigation.NavigateTo("/login");
             }
 
             return response;
-        }
-
-        private async Task<AuthenticationState> GetAuthenticationStateAsync()
-        {
-            var token = await _localStorage.GetItemAsync<string>("authToken");
-            if (string.IsNullOrEmpty(token)) return new AuthenticationState(new ClaimsPrincipal());
-
-            var handler = new JwtSecurityTokenHandler();
-            var jwtToken = handler.ReadJwtToken(token);
-            var identity = new ClaimsIdentity(jwtToken.Claims, "jwt");
-            return new AuthenticationState(new ClaimsPrincipal(identity));
         }
     }
 
@@ -80,7 +68,7 @@ namespace SmartBalanceBlazor.Auth
 
     public class RefreshTokenResponse
     {
-        public string Token { get; set; } = string.Empty;
-        public string RefreshToken { get; set; } = string.Empty;
+        public string token { get; set; } = string.Empty;
+        public string refreshToken { get; set; } = string.Empty;
     }
 }
