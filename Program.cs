@@ -22,6 +22,7 @@ builder.Services.AddHttpClient("SmartBalanceApi", client =>
 .AddHttpMessageHandler<TokenHandler>(); // Add the custom handler
 
 builder.Services.AddBlazoredLocalStorage();
+builder.Services.AddScoped<TokenHandler>();
 builder.Services.AddScoped<JwtAuthenticationStateProvider>();
 builder.Services.AddScoped<AuthenticationStateProvider>(sp => sp.GetRequiredService<JwtAuthenticationStateProvider>());
 builder.Services.AddAuthorizationCore();
