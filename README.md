@@ -90,12 +90,6 @@ SmartBalance follows an **N-layer architecture** to ensure modularity, scalabili
   - Modern design with smooth gradients and responsive layouts.
   - Radzen components for forms, buttons, charts, and more.
 
-### ⏳ Planned Features
-- 📅 **Enhanced Expense Tracking** – Add, edit, and delete expenses directly from the calendar.
-- 📊 **Advanced Dashboard Insights** – Financial summaries, spending trends, and predictive analytics.
-- 🔔 **Notifications** – Alerts for overspending or upcoming bills.
-- 📱 **Mobile Optimization** – Further improve responsiveness for smaller screens.
-
 ---
 
 ## 🌍 Live Demo
