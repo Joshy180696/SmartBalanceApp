@@ -32,7 +32,6 @@ This README provides an overview of the project, its technologies, architecture,
 - ⚙ **ASP.NET Core** – Powers the backend API for authentication and expense management.
 - 🗄 **Entity Framework Core** – Handles database interactions with Neon Postgres.
 - 🔑 **JWT** – Secure token-based authentication for API access.
-- https://smartbalanceapi.onrender.com/swagger/index.html
 
 ### Development Tools
 - 💻 **Visual Studio** – Primary IDE for coding and debugging.
@@ -98,7 +97,7 @@ SmartBalance follows an **N-layer architecture** to ensure modularity, scalabili
 Try SmartBalance now!
 
 - **Frontend (Blazor WebAssembly)** – 🔗 [SmartBalance.pages.dev](https://smartbalance.pages.dev)
-- **Backend API (ASP.NET Core)** – 🔗 [SmartBalance API on Render](https://smartbalanceapi.onrender.com)
+- **Backend API (ASP.NET Core)** – 🔗 [SmartBalance API on Render](https://smartbalanceapi.onrender.com/swagger/index.html)
 
 ### Demo Credentials
 For quick testing, use the following credentials:
