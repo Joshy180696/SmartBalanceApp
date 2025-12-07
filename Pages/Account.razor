@@ -241,21 +241,19 @@ else
                 Duration = 4000
             });
 
-            // Optional: log exception
-            // Logger.LogError(ex, "Error updating account");
-
             return null;
         }
         finally
         {
             isLoading = false;
-            StateHasChanged(); // Only if this is in a Blazor component
+            StateHasChanged(); 
         }
     }
 
-
-    private void Cancel() { Navigation.NavigateTo("/home"); }
-
+    private void Cancel()
+    { 
+        Navigation.NavigateTo("/home");
+    }
 
 }
 
