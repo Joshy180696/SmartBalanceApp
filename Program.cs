@@ -11,9 +11,19 @@ var builder = WebAssemblyHostBuilder.CreateDefault(args);
 
 builder.Services.AddRadzenComponents();
 
+// HttpClient for general API requests (with TokenHandler)
 builder.Services.AddHttpClient("SmartBalanceApi", client =>
-    client.BaseAddress = new Uri("https://smartbalanceapi.onrender.com/"))
-    .AddHttpMessageHandler<TokenHandler>();
+{
+    client.BaseAddress = new Uri("https://smartbalanceapi.onrender.com/");
+    client.DefaultRequestHeaders.Add("Accept", "application/json");
+}).AddHttpMessageHandler<TokenHandler>();
+
+// HttpClient for refresh requests (without TokenHandler, to avoid loops)
+builder.Services.AddHttpClient("SmartBalanceApi.Refresh", client =>
+{
+    client.BaseAddress = new Uri("https://smartbalanceapi.onrender.com/");
+    client.DefaultRequestHeaders.Add("Accept", "application/json");
+});
 
 
 builder.Services.AddBlazoredLocalStorage();
@@ -28,3 +38,5 @@ builder.RootComponents.Add<HeadOutlet>("head::after");
 builder.Services.AddScoped(sp => new HttpClient { BaseAddress = new Uri(builder.HostEnvironment.BaseAddress) });
 
 await builder.Build().RunAsync();
+
+//dotnet publish -c Release --output ./output

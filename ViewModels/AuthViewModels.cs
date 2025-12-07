@@ -51,7 +51,7 @@ namespace SmartBalanceBlazor.ViewModels
         public class RegisterErrorResponseModel
         {
             public string Message { get; set; } = string.Empty;
-            public Dictionary<string, string[]> Errors { get; set; }
+            public Dictionary<string, string[]>? Errors { get; set; }
         }
 
         public class LoginResponseModel
@@ -68,18 +68,6 @@ namespace SmartBalanceBlazor.ViewModels
         public class LoginErrorResponseModel
         {
             public string Message { get; set; } = string.Empty;
-        }
-
-        public class RefreshTokenRequest
-        {
-            public string UserName { get; set; } = string.Empty;
-            public string RefreshToken { get; set; } = string.Empty;
-        }
-
-        public class RefreshTokenResponseModel
-        {
-            public string Token { get; set; } = string.Empty;
-            public string RefreshToken { get; set; } = string.Empty;
         }
     }
 }

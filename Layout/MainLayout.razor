@@ -60,9 +60,6 @@
 
     private async Task Logout()
     {
-        await LocalStorage.RemoveItemAsync("authToken");
-        await LocalStorage.RemoveItemAsync("refreshToken");
-
         await AuthProvider.LogoutAsync();
         Navigation.NavigateTo("/login");
     }
