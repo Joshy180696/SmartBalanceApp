@@ -7,6 +7,7 @@
 @inject JwtAuthenticationStateProvider AuthProvider
 @inject NavigationManager Navigation
 @inject IHttpClientFactory HttpClientFactory
+@inject DialogService DialogService
 @attribute [Authorize]
 
 <PageTitle>Account - SmartBalance</PageTitle>
@@ -14,7 +15,6 @@
 <RadzenStack AlignItems="AlignItems.Center" JustifyContent="JustifyContent.Center" Style="height: 100%; padding: 20px;">
     <RadzenHeading Size="H2" Text="Account Info" Style="color: #3f51b5;" />
 
-    
     <!-- Profile Picture -->
 @*     <div style="margin-top: 15px; text-align:center;">
         <div style="
@@ -78,18 +78,15 @@ else
                     </RadzenFieldset> <RadzenFieldset Text="Contact Info"> <RadzenStack Gap="1rem"> <RadzenRow AlignItems="AlignItems.Center"> <RadzenColumn Size="12" SizeMD="4"> <RadzenLabel Text="Phone" /> </RadzenColumn> <RadzenColumn Size="12" SizeMD="8"> <RadzenTextBox @bind-Value="account.ContactNumber" Style="width:100%" /> </RadzenColumn> </RadzenRow> <RadzenRow AlignItems="AlignItems.Center"> <RadzenColumn Size="12" SizeMD="4"> <RadzenLabel Text="Address" /> </RadzenColumn> <RadzenColumn Size="12" SizeMD="8"> <RadzenTextBox @bind-Value="account.Address" Style="width:100%" /> </RadzenColumn> </RadzenRow> </RadzenStack> </RadzenFieldset>
                 </RadzenStack>
             </RadzenColumn> <RadzenColumn Size="12" SizeMD="6"> <RadzenStack> <RadzenFieldset Text="Financial Info"> <RadzenStack Gap="1rem"> <RadzenRow AlignItems="AlignItems.Center"> <RadzenColumn Size="12" SizeMD="4"> <RadzenLabel Text="Monthly Income" /> </RadzenColumn> <RadzenColumn Size="12" SizeMD="8"> <RadzenNumeric @bind-Value="account.MonthlyIncome" Style="width:100%" /> </RadzenColumn> </RadzenRow> </RadzenStack> </RadzenFieldset> </RadzenStack> </RadzenColumn>
-        </RadzenRow> <RadzenStack Orientation="Orientation.Horizontal" JustifyContent="JustifyContent.Center" Gap="1rem" class="rz-mt-8 rz-mb-4"> <RadzenButton ButtonType="ButtonType.Submit" Size="ButtonSize.Large" Icon="save" Text="Save" Disabled="true" /> <RadzenButton ButtonStyle="ButtonStyle.Light" Variant="Variant.Flat" Size="ButtonSize.Large" Icon="cancel" Text="Cancel" Click="@Cancel" /> </RadzenStack>
+        </RadzenRow> <RadzenStack Orientation="Orientation.Horizontal" JustifyContent="JustifyContent.Center" Gap="1rem" class="rz-mt-8 rz-mb-4"> <RadzenButton ButtonType="ButtonType.Submit" Size="ButtonSize.Large" Icon="save" Text="Save" BusyText="Saving..." IsBusy="@isLoading" Style="min-width: 120px;" /> <RadzenButton ButtonStyle="ButtonStyle.Light" Variant="Variant.Flat" Size="ButtonSize.Large" Icon="cancel" Text="Cancel" Click="@Cancel" /> </RadzenStack>
     </RadzenTemplateForm>
 }
-
-
-
-
 
 @code {
     private AccountInfo? account;
     private string username = "User"; 
     private string userId = string.Empty; 
+    private bool isLoading = false;  
 
     protected override async Task OnInitializedAsync()
     {
@@ -121,8 +118,6 @@ else
         }
     }
 
-
-
     private async Task<AccountInfo> FetchUserAccount(string userId)
     {
         try
@@ -138,13 +133,14 @@ else
             if (response.StatusCode == System.Net.HttpStatusCode.Unauthorized)
             {
                 NotificationService.Notify(new NotificationMessage { Severity = NotificationSeverity.Error, Summary = "Unauthorized", Detail = "Your session has expired. Please log in again.", Duration = 4000 });
-                await AuthProvider.LogoutAsync(); Navigation.NavigateTo("/login");
+                await AuthProvider.LogoutAsync(); 
+                Navigation.NavigateTo("/login");
             }
             return null!;
         }
         catch (Exception) 
         {
-            NotificationService.Notify(new NotificationMessage { Severity = NotificationSeverity.Error, Summary = "Error", Detail = "Failed to load expenses.", Duration = 4000 }); return null!;
+            NotificationService.Notify(new NotificationMessage { Severity = NotificationSeverity.Error, Summary = "Error", Detail = "Failed to load account.", Duration = 4000 }); return null!;
         }
         finally
         {
@@ -153,7 +149,111 @@ else
 
     }
 
-    private void Submit(AccountInfo model) { Console.WriteLine("Account saved"); }
+    private async Task<AccountInfo?> Submit(AccountInfo model)
+    {
+        isLoading = true;                    
+        StateHasChanged();
+
+        var updatedAccount = new UpdatedAccountInfo
+        {
+            Address = model.Address,
+            Bio = model.Bio,
+            ContactNumber = model.ContactNumber,
+            MonthlyIncome = model.MonthlyIncome
+        };
+
+        try
+        {
+            var httpClient = HttpClientFactory.CreateClient("SmartBalanceApi");
+            string url = $"https://smartbalanceapi.onrender.com/api/Account/update/{userId}";
+            var response = await httpClient.PatchAsJsonAsync(url, updatedAccount);
+          
+            if (response.IsSuccessStatusCode)
+            {
+                var apiResponse = await response.Content.ReadFromJsonAsync<UpdatedAccountResponse>();
+
+                if (apiResponse?.Success == true && apiResponse.UpdatedAccountInfo != null)
+                {
+                    var result = apiResponse.UpdatedAccountInfo;
+
+                    account!.Address = result.Address ?? account.Address;
+                    account.ContactNumber = result.ContactNumber ?? account.ContactNumber;
+                    account.Bio = result.Bio;
+                    account.MonthlyIncome = result.MonthlyIncome ?? account.MonthlyIncome;
+
+                    NotificationService.Notify(new NotificationMessage
+                    {
+                        Severity = NotificationSeverity.Success,
+                        Summary = "Success",
+                        Detail = "Account updated successfully!",
+                        Duration = 4000
+                    });
+                    DialogService.Close(true); 
+
+                    return account;
+                }
+                else
+                {
+                    var errorMessage = apiResponse?.ErrorMessage ?? "Unknown error occurred.";
+                    NotificationService.Notify(new NotificationMessage
+                    {
+                        Severity = NotificationSeverity.Error,
+                        Summary = "Update Failed",
+                        Detail = errorMessage,
+                        Duration = 4000
+                    });
+                    return null;
+                }
+            }
+            else if (response.StatusCode == System.Net.HttpStatusCode.Unauthorized)
+            {
+                NotificationService.Notify(new NotificationMessage
+                {
+                    Severity = NotificationSeverity.Error,
+                    Summary = "Unauthorized",
+                    Detail = "Your session has expired. Please log in again.",
+                    Duration = 4000
+                });
+                await AuthProvider.LogoutAsync();
+                Navigation.NavigateTo("/login", forceLoad: true);
+                return null;
+            }
+            else
+            {
+                var errorContent = await response.Content.ReadAsStringAsync();
+                NotificationService.Notify(new NotificationMessage
+                {
+                    Severity = NotificationSeverity.Error,
+                    Summary = "Error",
+                    Detail = $"Failed to update account: {response.StatusCode} - {errorContent}",
+                    Duration = 4000
+                });
+                return null;
+            }
+        }
+        catch (Exception ex)
+        {
+            NotificationService.Notify(new NotificationMessage
+            {
+                Severity = NotificationSeverity.Error,
+                Summary = "Error",
+                Detail = $"An unexpected error occurred while updating your account. {ex.Message}",
+                Duration = 4000
+            });
+
+            // Optional: log exception
+            // Logger.LogError(ex, "Error updating account");
+
+            return null;
+        }
+        finally
+        {
+            isLoading = false;
+            StateHasChanged(); // Only if this is in a Blazor component
+        }
+    }
+
+
     private void Cancel() { Navigation.NavigateTo("/home"); }
 
 
