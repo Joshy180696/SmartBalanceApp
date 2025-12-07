@@ -90,12 +90,6 @@ SmartBalance follows an **N-layer architecture** to ensure modularity, scalabili
   - Modern design with smooth gradients and responsive layouts.
   - Radzen components for forms, buttons, charts, and more.
 
-### ⏳ Planned Features
-- 📅 **Enhanced Expense Tracking** – Add, edit, and delete expenses directly from the calendar.
-- 📊 **Advanced Dashboard Insights** – Financial summaries, spending trends, and predictive analytics.
-- 🔔 **Notifications** – Alerts for overspending or upcoming bills.
-- 📱 **Mobile Optimization** – Further improve responsiveness for smaller screens.
-
 ---
 
 ## 🌍 Live Demo
@@ -103,7 +97,7 @@ SmartBalance follows an **N-layer architecture** to ensure modularity, scalabili
 Try SmartBalance now!
 
 - **Frontend (Blazor WebAssembly)** – 🔗 [SmartBalance.pages.dev](https://smartbalance.pages.dev)
-- **Backend API (ASP.NET Core)** – 🔗 [SmartBalance API on Render](https://smartbalanceapi.onrender.com)
+- **Backend API (ASP.NET Core)** – 🔗 [SmartBalance API on Render](https://smartbalanceapi.onrender.com/swagger/index.html)
 
 ### Demo Credentials
 For quick testing, use the following credentials:
