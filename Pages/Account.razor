@@ -1,21 +1,168 @@
 ﻿@page "/account"
 @using Microsoft.AspNetCore.Authorization
+@using SmartBalanceBlazor.Auth
+@using System.Security.Claims
+@using static SmartBalanceBlazor.ViewModels.AccountViewModels
+@inject NotificationService NotificationService
+@inject JwtAuthenticationStateProvider AuthProvider
+@inject NavigationManager Navigation
+@inject IHttpClientFactory HttpClientFactory
 @attribute [Authorize]
 
 <PageTitle>Account - SmartBalance</PageTitle>
 
 <RadzenStack AlignItems="AlignItems.Center" JustifyContent="JustifyContent.Center" Style="height: 100%; padding: 20px;">
-    <RadzenHeading Size="H2" Text="Account" Style="color: #3f51b5;" />
-    <RadzenText TextStyle="TextStyle.Subtitle1" Style="margin-top: 20px;">
-        🚧 Work in Progress 🚧
-    </RadzenText>
-    <RadzenText TextStyle="TextStyle.Body1" Style="margin-top: 10px; text-align: center;">
-        We're working hard to bring you more features! Check back soon for updates. 😄
-    </RadzenText>
-    <RadzenButton Click="@(() => Navigation.NavigateTo("/home"))" Text="Back to home" Style="margin-top: 20px; background-color: #3f51b5; color: white;" />
+    <RadzenHeading Size="H2" Text="Account Info" Style="color: #3f51b5;" />
+
+    
+    <!-- Profile Picture -->
+@*     <div style="margin-top: 15px; text-align:center;">
+        <div style="
+            width:120px;
+            height:120px;
+            border-radius:50%;
+            border:3px solid #3f51b5;
+            overflow:hidden;
+            display:flex;
+            align-items:center;
+            justify-content:center;
+            background-color:#f5f5f5;">
+
+            @if (!string.IsNullOrEmpty(ProfileImageUrl))
+            {
+                <img src="@ProfileImageUrl" style="width:100%; height:100%; object-fit:cover;" />
+            }
+            else
+            {
+                <i class="material-icons" style="font-size:60px; color:#3f51b5;">person</i>
+            }
+        </div>
+    </div> *@
+
+
 </RadzenStack>
+@if (account == null)
+{
+    <RadzenText TextStyle="TextStyle.Subtitle1" TextAlign="TextAlign.Center" Style="margin-top: 20px;"> Loading account... 🚀 </RadzenText>
+}
+else
+{
+    <RadzenTemplateForm Data="@account" Submit="@((AccountInfo args) => Submit(args))">
+        <RadzenRow Gap="2rem" class="rz-p-0 rz-p-lg-4">
+            <RadzenColumn Size="12" SizeMD="6">
+                <RadzenStack>
+                    <RadzenFieldset Text="Personal Info">
+                        <RadzenStack Gap="1rem">
+                            <RadzenRow AlignItems="AlignItems.Center">
+                                <RadzenColumn Size="12" SizeMD="4">
+                                    <RadzenLabel Text="First Name" />
+                                </RadzenColumn>
+                                <RadzenColumn Size="12" SizeMD="8">
+                                    <RadzenTextBox @bind-Value="account.FirstName" Style="width:100%" Disabled="true" />
+                                </RadzenColumn>
+                            </RadzenRow> <RadzenRow AlignItems="AlignItems.Center">
+                                <RadzenColumn Size="12" SizeMD="4"> <RadzenLabel Text="Last Name" /> </RadzenColumn>
+                                <RadzenColumn Size="12" SizeMD="8">
+                                    <RadzenTextBox @bind-Value="account.LastName" Style="width:100%" Disabled="true" />
+                                </RadzenColumn>
+                            </RadzenRow>
+                            <RadzenRow AlignItems="AlignItems.Center">
+                                <RadzenColumn Size="12" SizeMD="4">
+                                    <RadzenLabel Text="Bio" />
+                                </RadzenColumn> <RadzenColumn Size="12" SizeMD="8">
+                                    <RadzenTextBox @bind-Value="account.Bio" Style="width:100%" />
+
+                                </RadzenColumn>
+                            </RadzenRow>
+                        </RadzenStack>
+                    </RadzenFieldset> <RadzenFieldset Text="Contact Info"> <RadzenStack Gap="1rem"> <RadzenRow AlignItems="AlignItems.Center"> <RadzenColumn Size="12" SizeMD="4"> <RadzenLabel Text="Phone" /> </RadzenColumn> <RadzenColumn Size="12" SizeMD="8"> <RadzenTextBox @bind-Value="account.ContactNumber" Style="width:100%" /> </RadzenColumn> </RadzenRow> <RadzenRow AlignItems="AlignItems.Center"> <RadzenColumn Size="12" SizeMD="4"> <RadzenLabel Text="Address" /> </RadzenColumn> <RadzenColumn Size="12" SizeMD="8"> <RadzenTextBox @bind-Value="account.Address" Style="width:100%" /> </RadzenColumn> </RadzenRow> </RadzenStack> </RadzenFieldset>
+                </RadzenStack>
+            </RadzenColumn> <RadzenColumn Size="12" SizeMD="6"> <RadzenStack> <RadzenFieldset Text="Financial Info"> <RadzenStack Gap="1rem"> <RadzenRow AlignItems="AlignItems.Center"> <RadzenColumn Size="12" SizeMD="4"> <RadzenLabel Text="Monthly Income" /> </RadzenColumn> <RadzenColumn Size="12" SizeMD="8"> <RadzenNumeric @bind-Value="account.MonthlyIncome" Style="width:100%" /> </RadzenColumn> </RadzenRow> </RadzenStack> </RadzenFieldset> </RadzenStack> </RadzenColumn>
+        </RadzenRow> <RadzenStack Orientation="Orientation.Horizontal" JustifyContent="JustifyContent.Center" Gap="1rem" class="rz-mt-8 rz-mb-4"> <RadzenButton ButtonType="ButtonType.Submit" Size="ButtonSize.Large" Icon="save" Text="Save" Disabled="true" /> <RadzenButton ButtonStyle="ButtonStyle.Light" Variant="Variant.Flat" Size="ButtonSize.Large" Icon="cancel" Text="Cancel" Click="@Cancel" /> </RadzenStack>
+    </RadzenTemplateForm>
+}
+
+
+
+
 
 @code {
-    @inject NavigationManager Navigation
+    private AccountInfo? account;
+    private string username = "User"; 
+    private string userId = string.Empty; 
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            var authState = await AuthProvider.GetAuthenticationStateAsync();
+            if (authState.User.Identity?.IsAuthenticated ?? false)
+            {
+                var claims = authState.User.Claims; var userNameClaim = claims.FirstOrDefault(c => c.Type == ClaimTypes.Name || c.Type == "unique_name" || c.Type == "username");
+                username = userNameClaim?.Value ?? "User";
+                var userIdClaim = claims.FirstOrDefault(c => c.Type == ClaimTypes.NameIdentifier || c.Type == "sub"); userId = userIdClaim?.Value ?? string.Empty;
+                if (!string.IsNullOrEmpty(userId))
+                {
+                    account = await FetchUserAccount(userId);
+                }
+                else
+                {
+                    NotificationService.Notify(new NotificationMessage { Severity = NotificationSeverity.Warning, Summary = "Error", Detail = "User ID not found. Please log in again.", Duration = 4000 });
+                }
+            }
+            else
+            {
+                username = "Guest";
+            }
+        }
+        catch (Exception)
+        {
+            username = "User"; NotificationService.Notify(new NotificationMessage { Severity = NotificationSeverity.Error, Summary = "Error", Detail = "Failed to initialize user data.", Duration = 4000 });
+        }
+    }
+
+
+
+    private async Task<AccountInfo> FetchUserAccount(string userId)
+    {
+        try
+        {
+            var httpClient = HttpClientFactory.CreateClient("SmartBalanceApi");
+            string url = $"https://smartbalanceapi.onrender.com/api/Account/{userId}";
+            var response = await httpClient.GetAsync(url);
+            if (response.IsSuccessStatusCode)
+            {
+                var apiResponse = await response.Content.ReadFromJsonAsync<AccountResponse>();
+                if (apiResponse!.Success == true && apiResponse.UserAccount != null) { account = apiResponse.UserAccount; return account; }
+            }
+            if (response.StatusCode == System.Net.HttpStatusCode.Unauthorized)
+            {
+                NotificationService.Notify(new NotificationMessage { Severity = NotificationSeverity.Error, Summary = "Unauthorized", Detail = "Your session has expired. Please log in again.", Duration = 4000 });
+                await AuthProvider.LogoutAsync(); Navigation.NavigateTo("/login");
+            }
+            return null!;
+        }
+        catch (Exception) 
+        {
+            NotificationService.Notify(new NotificationMessage { Severity = NotificationSeverity.Error, Summary = "Error", Detail = "Failed to load expenses.", Duration = 4000 }); return null!;
+        }
+        finally
+        {
+            StateHasChanged();
+        }
+
+    }
+
+    private void Submit(AccountInfo model) { Console.WriteLine("Account saved"); }
+    private void Cancel() { Navigation.NavigateTo("/home"); }
+
 
 }
+
+<style>
+    .rz-fieldset legend {
+        color: #3f51b5 !important;
+        font-weight: 600;
+        font-size: 1.1rem;
+    }
+</style>
