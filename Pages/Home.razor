@@ -2,6 +2,7 @@
 @using Microsoft.AspNetCore.Authorization
 @using SmartBalanceBlazor.Auth
 @using System.Security.Claims
+@using static SmartBalanceBlazor.ViewModels.AccountViewModels
 @using static SmartBalanceBlazor.ViewModels.ExpenseViewModels
 @inject JwtAuthenticationStateProvider AuthProvider
 @inject IHttpClientFactory HttpClientFactory
@@ -10,357 +11,314 @@
 @inject NavigationManager Navigation
 @attribute [Authorize]
 
-<PageTitle>HomePage - SmartBalance</PageTitle>
+<PageTitle>Calendar - SmartBalance</PageTitle>
 
-<RadzenStack>
-    <RadzenHeading Size="H3" Text="@($"Welcome, {username}!")" />
-    <RadzenCard Style="margin-bottom: 20px; padding: 15px;">
-        <RadzenStack Orientation="Orientation.Horizontal" Gap="20px">
-            <RadzenLabel Text="@($"Monthly Income: {monthlyIncome:C}")" />
-            <RadzenLabel Text="@($"Remaining Balance: {TotalBalance:C}")" Style="@(TotalBalance < 0 ? "color: #d32f2f;" : "color: #3f51b5;")" />
-        </RadzenStack>
-    </RadzenCard>
+<RadzenStack Gap="2rem" Class="rz-p-4 rz-p-md-8">
 
-    @if (!expenses.Any())
+    <!-- Header -->
+    <div class="rz-text-align-center rz-my-6">
+        <RadzenText TextStyle="TextStyle.H3" Class="rz-mb-2" Style="color :#3f51b5">
+            <b>Calendar Overview</b>
+        </RadzenText>
+        <RadzenText TextStyle="TextStyle.Subtitle1" Class="rz-opacity-70">
+            Welcome, <strong>@username</strong>
+        </RadzenText>
+    </div>
+
+    <!-- Loading Spinner -->
+    @if (isLoading)
     {
-        <RadzenText TextStyle="TextStyle.Subtitle2" Text="You have no expenses for this month. Click a day to add one!" />
+        <div class="rz-text-align-center rz-py-16">
+            <RadzenProgressBarCircular Size="ProgressBarCircularSize.Large"
+                                       ShowValue="false"
+                                       Style="width: 80px; height: 80px;" />
+            <RadzenText TextStyle="TextStyle.H6" Class="rz-mt-6 rz-display-block" Style="color: #555; font-weight: 500;">
+                Loading your calender...
+            </RadzenText>
+            <div class="loading-dots rz-mt-4">
+                <span></span><span></span><span></span>
+            </div>
+        </div>
     }
-    </RadzenStack>
+    else
+    {
+        <!-- Income & Balance Card -->
+        <RadzenCard Class="rz-shadow-4 rz-border-radius-3">
+            <RadzenStack Orientation="Orientation.Horizontal"
+                         JustifyContent="JustifyContent.SpaceBetween"
+                         AlignItems="AlignItems.Center"
+                         Class="rz-p-6">
+                <div>
+                    <RadzenText TextStyle="TextStyle.Subtitle1" Class="rz-mb-2 rz-opacity-70">
+                        Monthly Income
+                    </RadzenText>
+                    <RadzenText TextStyle="TextStyle.H4" Class="rz-m-0">
+                        <b>@($"{monthlyIncome:N0} €")</b>
+                    </RadzenText>
+                </div>
 
-    <br />
+                <div class="rz-text-align-right">
+                    <RadzenText TextStyle="TextStyle.Subtitle1" Class="rz-mb-2 rz-opacity-70">
+                        Remaining Balance
+                    </RadzenText>
+                    <RadzenText TextStyle="TextStyle.H3" Class="rz-m-0"
+                                Style="@(TotalBalance >= 0 ? "color: #2e7d32;" : "color: #d32f2f;")">
+                        <b>@($"{TotalBalance:N0} €")</b>
+                    </RadzenText>
+                    @if (TotalBalance < 0)
+                    {
+                        <RadzenText TextStyle="TextStyle.Body2" Class="rz-mt-2" Style="color: #d32f2f;">
+                            You are over budget!
+                        </RadzenText>
+                    }
+                </div>
+            </RadzenStack>
+        </RadzenCard>
 
-
-<RadzenScheduler @ref="scheduler" SlotRender="@OnSlotRender" style="height: 768px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); border: 1px solid #e0e0e0;" TItem="Expenses" Data="@expenses" StartProperty="Date" EndProperty="Date" ShowHeader="true"
-                 TextProperty="Description" SelectedIndex="2"
-                 SlotSelect="@OnSlotSelect" AppointmentSelect="@OnAppointmentSelect" AppointmentRender="@OnAppointmentRender" DaySelect="@OnDaySelect"
-                 AppointmentMove="@OnAppointmentMove">
-    <RadzenDayView />
-    <RadzenWeekView />
-    <RadzenMonthView />
-</RadzenScheduler>
-
-
-    <style>
-        /* Hide the Previous/Next/Today buttons */
-        .rz-scheduler-nav-prev-next {
-            display: none !important;
+        <!-- No Expenses Message -->
+        @if (!expenses.Any())
+        {
+            <RadzenCard Class="rz-shadow-2 rz-border-radius-3 rz-p-8 rz-text-align-center">
+                <RadzenIcon Icon="info" Style="font-size: 3rem; color: #6366f1; opacity: 0.7;" />
+                <RadzenText TextStyle="TextStyle.H6" Class="rz-mt-4 rz-mb-2">
+                    No expenses this month
+                </RadzenText>
+                <RadzenText TextStyle="TextStyle.Body1" Class="rz-opacity-70">
+                    Click on any day in the calendar to add your first expense!
+                </RadzenText>
+            </RadzenCard>
         }
 
-        /* Center the month label */
-        .rz-scheduler-nav {
-            display: flex;
-            justify-content: center;
-            align-items: center;
-        }
+        <!-- Calendar -->
+        <RadzenCard Class="rz-shadow-3 rz-border-radius-3" Style="overflow: hidden;">
+            <RadzenScheduler @ref="scheduler"
+                             SlotRender="@OnSlotRender"
+                             TItem="Expenses"
+                             Data="@expenses"
+                             StartProperty="Date"
+                             EndProperty="Date"
+                             TextProperty="Description"
+                             SelectedIndex="2"
+                             SlotSelect="@OnSlotSelect"
+                             AppointmentSelect="@OnAppointmentSelect"
+                             AppointmentRender="@OnAppointmentRender"
+                             Style="height: 720px;">
 
-        /* Ensure the month label and view buttons are spaced nicely */
-        .rz-scheduler-nav-title {
-            margin-right: 20px; /* Space between the label and view buttons */
-        }
-
-        /* Ensure the scheduler content remains interactive */
-        .rz-scheduler-content {
-            pointer-events: auto !important;
-        }
-    </style>
+                <RadzenDayView />
+                <RadzenWeekView />
+                <RadzenMonthView />
+            </RadzenScheduler>
+        </RadzenCard>
+    }
+</RadzenStack>
 
     @code {
-    private string username = "User";
+    private string username = string.Empty;
     private string userId = string.Empty;
     private decimal monthlyIncome = 0m;
-    private RadzenScheduler<Expenses> scheduler;
-    private List<Expenses> expenses = new List<Expenses>();
-    private bool showHeader = true;
+    private RadzenScheduler<Expenses> scheduler = default!;
+    private List<Expenses> expenses = new();
     private DateTime currentMonth = DateTime.Now;
-    private bool isFetching = false;
-    private DateTime? lastFetchedMonth = null;
+    private bool isLoading = true;
 
-    private decimal TotalBalance => monthlyIncome - (expenses?.Sum(e => e.Amount) ?? 0);
-
-    void OnSlotRender(SchedulerSlotRenderEventArgs args)
-    {
-        var currentDate = DateTime.Now;
-        var slotYearMonth = new DateTime(args.Start.Year, args.Start.Month, 1);
-        var currentYearMonth = new DateTime(currentDate.Year, currentDate.Month, 1);
-
-        if (args.View.Text == "Month" && args.Start.Date == DateTime.Today)
-        {
-            args.Attributes["style"] = "background: var(--rz-scheduler-highlight-background-color, rgba(255,220,40,.2));";
-        }
-
-        if ((args.View.Text == "Week" || args.View.Text == "Day") && args.Start.Hour > 8 && args.Start.Hour < 19)
-        {
-            args.Attributes["style"] = "background: var(--rz-scheduler-highlight-background-color, rgba(255,220,40,.2));";
-        }
-
-        if (slotYearMonth < currentYearMonth || slotYearMonth > currentYearMonth)
-        {
-            args.Attributes["style"] = (args.Attributes.ContainsKey("style") ? args.Attributes["style"] + ";" : "") + "background: #e0e0e0; opacity: 0.5; pointer-events: none;";
-        }
-    }
-
-    // For now keep it simple and dont allow toggle months
-    // private async Task OnNavigate(DateTime startDate, DateTime endDate)
-    // {
-    //     Console.WriteLine($"OnNavigate triggered - StartDate: {startDate:yyyy-MM-dd}, EndDate: {endDate:yyyy-MM-dd}");
-    //     var newMonth = new DateTime(startDate.Year, startDate.Month, 1);
-    //     Console.WriteLine($"New month calculated: {newMonth:yyyy-MM}, Current month: {currentMonth:yyyy-MM}");
-    //     if (newMonth != currentMonth)
-    //     {
-    //         currentMonth = newMonth;
-    //         await FetchExpensesForCurrentMonth();
-    //     }
-    // }
-
-    async Task OnSlotSelect(SchedulerSlotSelectEventArgs args)
-    {
-        System.Diagnostics.Debug.WriteLine($"Slot selected at: {args.Start}");
-        var selectedMonth = new DateTime(args.Start.Year, args.Start.Month, 1);
-        var currentDate = DateTime.Now;
-        var currentYearMonth = new DateTime(currentDate.Year, currentDate.Month, 1);
-
-        if (selectedMonth != currentYearMonth)
-        {
-            NotificationService.Notify(new NotificationMessage
-                {
-                    Severity = NotificationSeverity.Warning,
-                    Summary = "Invalid Date",
-                    Detail = "You can only add expenses for the current month.",
-                    Duration = 4000
-                });
-            return;
-        }
-
-        NotificationService.Notify(new NotificationMessage
-            {
-                Severity = NotificationSeverity.Info,
-                Summary = "Slot Selected",
-                Detail = $"Date: {args.Start:dd/MM/yyyy}",
-                Duration = 2000
-            });
-
-        if (!string.IsNullOrEmpty(userId))
-        {
-            var startDate = args.Start.Date;
-            await DialogService.OpenAsync<AddExpensePage>("Add New Expense",
-                new Dictionary<string, object> { { "UserId", userId }, { "StartDate", startDate } },
-                new DialogOptions { Width = "400px", Height = "auto", CloseDialogOnOverlayClick = true });
-            await FetchExpensesForUser(userId, currentMonth);
-        }
-        else
-        {
-            NotificationService.Notify(new NotificationMessage
-                {
-                    Severity = NotificationSeverity.Warning,
-                    Summary = "Error",
-                    Detail = "User ID not found. Please log in again.",
-                    Duration = 4000
-            });
-        }
-    }
-
-    async Task OnAppointmentSelect(SchedulerAppointmentSelectEventArgs<Expenses> args)
-    {
-        var expense = args.Data;
-        await DialogService.OpenAsync<ViewExpense>("View Expense",
-            new Dictionary<string, object> { { "Expense", expense }, { "UserId", userId } },
-            new DialogOptions { Width = "400px", Height = "auto", CloseDialogOnOverlayClick = true });
-        await FetchExpensesForUser(userId, currentMonth);
-    }
-
-    void OnAppointmentRender(SchedulerAppointmentRenderEventArgs<Expenses> args)
-    {
-        args.Attributes["style"] = "background: #3f51b5; color: white;";
-        args.Attributes["title"] = $"Expense: {args.Data.Description} - Amount: {args.Data.Amount:C}";
-    }
-
-    void OnDaySelect(SchedulerDaySelectEventArgs args)
-    {
-    }
-
-    async Task OnAppointmentMove(SchedulerAppointmentMoveEventArgs args)
-    {
-    }
+    private decimal TotalBalance => monthlyIncome - (expenses?.Sum(e => e.Amount) ?? 0m);
 
     protected override async Task OnInitializedAsync()
     {
+        isLoading = true;
+        StateHasChanged();
+
+        var authState = await AuthProvider.GetAuthenticationStateAsync();
+        var user = authState.User;
+
+        if (!user.Identity?.IsAuthenticated ?? false)
+        {
+            Navigation.NavigateTo("/login");
+            return;
+        }
+
+        username = user.FindFirst(c => c.Type == ClaimTypes.Name || c.Type == "unique_name")?.Value ?? "User";
+        userId = user.FindFirst(c => c.Type == ClaimTypes.NameIdentifier || c.Type == "sub")?.Value ?? "";
+
+        if (string.IsNullOrEmpty(userId))
+        {
+            NotificationService.Notify(NotificationSeverity.Warning, "Error", "User not found.");
+            Navigation.NavigateTo("/login");
+            return;
+        }
+
+        await Task.WhenAll(
+            LoadMonthlyIncome(),
+            FetchExpensesForCurrentMonth()
+        );
+
+        isLoading = false;
+        StateHasChanged();
+    }
+
+    private async Task LoadMonthlyIncome()
+    {
         try
         {
-            var authState = await AuthProvider.GetAuthenticationStateAsync();
-            if (authState.User.Identity?.IsAuthenticated ?? false)
+            var client = HttpClientFactory.CreateClient("SmartBalanceApi");
+            var resp = await client.GetAsync($"api/Account/{userId}");
+            if (resp.IsSuccessStatusCode)
             {
-                var claims = authState.User.Claims;
-                var userNameClaim = claims.FirstOrDefault(c => c.Type == ClaimTypes.Name || c.Type == "unique_name" || c.Type == "username");
-                username = userNameClaim?.Value ?? "User";
-
-                var userIdClaim = claims.FirstOrDefault(c => c.Type == ClaimTypes.NameIdentifier || c.Type == "sub");
-                userId = userIdClaim?.Value ?? string.Empty;
-
-                var incomeClaim = claims.FirstOrDefault(c => c.Type == "monthlyIncome" || c.Type == "income");
-                if (incomeClaim != null && decimal.TryParse(incomeClaim.Value, out var income))
-                {
-                    monthlyIncome = income;
-                }
-                else
-                {
-                    NotificationService.Notify(new NotificationMessage
-                        {
-                            Severity = NotificationSeverity.Warning,
-                            Summary = "Warning",
-                            Detail = "Monthly income not found in user profile.",
-                            Duration = 4000
-                        });
-                }
-
-                if (!string.IsNullOrEmpty(userId))
-                {
-                    currentMonth = DateTime.Now;
-                    await FetchExpensesForUser(userId, currentMonth);
-                }
-                else
-                {
-                    NotificationService.Notify(new NotificationMessage
-                        {
-                            Severity = NotificationSeverity.Warning,
-                            Summary = "Error",
-                            Detail = "User ID not found. Please log in again.",
-                            Duration = 4000
-                        });
-                }
-            }
-            else
-            {
-                username = "Guest";
+                var acc = await resp.Content.ReadFromJsonAsync<AccountResponse>();
+                monthlyIncome = acc?.UserAccount?.MonthlyIncome ?? 0m;
             }
         }
-        catch (Exception ex)
+        catch
         {
-            username = "User";
-            NotificationService.Notify(new NotificationMessage
-                {
-                    Severity = NotificationSeverity.Error,
-                    Summary = "Error",
-                    Detail = "Failed to initialize user data.",
-                    Duration = 4000
-                });
+            NotificationService.Notify(NotificationSeverity.Error, "Error", "Failed to load mothly income.");
+            monthlyIncome = 0;
         }
+    }
+
+    private async Task FetchExpensesForCurrentMonth()
+    {
+        await FetchExpensesForUser(userId, currentMonth);
+        if (scheduler != null)
+            await scheduler.Reload();
     }
 
     private async Task FetchExpensesForUser(string userId, DateTime? month = null)
     {
         try
         {
-            var httpClient = HttpClientFactory.CreateClient("SmartBalanceApi");
-            string url = $"https://smartbalanceapi.onrender.com/api/Expenses/{userId}";
+            var client = HttpClientFactory.CreateClient("SmartBalanceApi");
+            var url = $"api/Expenses/{userId}";
             if (month.HasValue)
-            {
                 url += $"?year={month.Value.Year}&month={month.Value.Month}";
-            }
 
-            var response = await httpClient.GetAsync(url);
+            var response = await client.GetAsync(url);
 
-            if (response.IsSuccessStatusCode)
+            if (response.IsSuccessStatusCode || response.StatusCode == System.Net.HttpStatusCode.NoContent)
             {
-                expenses = await response.Content.ReadFromJsonAsync<List<Expenses>>() ?? new List<Expenses>();
+                expenses = await response.Content.ReadFromJsonAsync<List<Expenses>>() ?? new();
                 expenses = expenses.Select(e => new Expenses
-                    {
-                        Id = e.Id,
-                        Description = e.Description,
-                        Amount = e.Amount,
-                        Date = new DateTime(e.Date.Year, e.Date.Month, e.Date.Day, 9, 0, 0)
-                    }).ToList();
-                System.Diagnostics.Debug.WriteLine($"Fetched expenses for {url} - Count: {expenses.Count}");
-                foreach (var expense in expenses)
                 {
-                    System.Diagnostics.Debug.WriteLine($"Expense: {expense.Description}, Date: {expense.Date:yyyy-MM-dd HH:mm:ss}");
-                }
-                if (!expenses.Any())
-                {
-                    NotificationService.Notify(new NotificationMessage
-                        {
-                            Severity = NotificationSeverity.Info,
-                            Summary = "No Expenses",
-                            Detail = "You have no expenses for this month. Add some by clicking a day!",
-                            Duration = 4000
-                        });
-                }
-                await scheduler.Reload();
+                    Id = e.Id,
+                    Description = e.Description,
+                    Amount = e.Amount,
+                    Date = new DateTime(e.Date.Year, e.Date.Month, e.Date.Day, 9, 0, 0)
+                }).ToList();
             }
-            else
+            else if (response.StatusCode == System.Net.HttpStatusCode.Unauthorized)
             {
-                if (response.StatusCode == System.Net.HttpStatusCode.NotFound || response.StatusCode == System.Net.HttpStatusCode.NoContent)
-                {
-                    expenses = new List<Expenses>();
-                    System.Diagnostics.Debug.WriteLine($"No expenses found for {url}");
-                    NotificationService.Notify(new NotificationMessage
-                        {
-                            Severity = NotificationSeverity.Info,
-                            Summary = "No Expenses",
-                            Detail = "You have no expenses for this month. Add some by clicking a day!",
-                            Duration = 4000
-                        });
-                }
-                else if (response.StatusCode == System.Net.HttpStatusCode.Unauthorized)
-                {
-                    NotificationService.Notify(new NotificationMessage
-                        {
-                            Severity = NotificationSeverity.Error,
-                            Summary = "Unauthorized",
-                            Detail = "Your session has expired. Please log in again.",
-                            Duration = 4000
-                        });
-                    await AuthProvider.LogoutAsync();
-                    Navigation.NavigateTo("/login");
-                }
-                else
-                {
-                    NotificationService.Notify(new NotificationMessage
-                        {
-                            Severity = NotificationSeverity.Error,
-                            Summary = "Error",
-                            Detail = "Failed to load expenses.",
-                            Duration = 4000
-                        });
-                    expenses = new List<Expenses>();
-                }
+                NotificationService.Notify(NotificationSeverity.Error, "Session expired", "Logging out...");
+                await AuthProvider.LogoutAsync();
+                Navigation.NavigateTo("/login");
             }
         }
-        catch (Exception ex)
+        catch (Exception)
         {
-            NotificationService.Notify(new NotificationMessage
-                {
-                    Severity = NotificationSeverity.Error,
-                    Summary = "Error",
-                    Detail = "Failed to load expenses.",
-                    Duration = 4000
-                });
-            expenses = new List<Expenses>();
-        }
-        finally
-        {
-            StateHasChanged();
+            NotificationService.Notify(NotificationSeverity.Error, "Error", "Failed to load expenses.");
+            expenses = new();
         }
     }
-
-    private async Task FetchExpensesForCurrentMonth()
+    void OnSlotRender(SchedulerSlotRenderEventArgs args)
     {
-        System.Diagnostics.Debug.WriteLine($"FetchExpensesForCurrentMonth - isFetching: {isFetching}, lastFetchedMonth: {lastFetchedMonth?.ToString("yyyy-MM") ?? "null"}, currentMonth: {currentMonth:yyyy-MM}");
-        if (isFetching || lastFetchedMonth == currentMonth) return;
+        var today = DateTime.Today;
+        var currentMonthStart = new DateTime(today.Year, today.Month, 1);
 
-        isFetching = true;
-        lastFetchedMonth = currentMonth;
-        try
-        {
-            System.Diagnostics.Debug.WriteLine($"Fetching expenses for month: {currentMonth:yyyy-MM}");
-            await FetchExpensesForUser(userId, currentMonth);
-            System.Diagnostics.Debug.WriteLine($"After fetch - Expenses count: {expenses.Count}, TotalBalance: {TotalBalance:C}");
+        if (args.Start.Date == today)
+            args.Attributes["style"] = "background: rgba(99, 102, 241, 0.15); border-left: 4px solid #6366f1;";
 
-        }
-        finally
+        if (new DateTime(args.Start.Year, args.Start.Month, 1) != currentMonthStart)
+            args.Attributes["style"] = "opacity: 0.4; pointer-events: none;";
+    }
+
+    async Task OnSlotSelect(SchedulerSlotSelectEventArgs args)
+    {
+        if (args.Start.Month != DateTime.Now.Month || args.Start.Year != DateTime.Now.Year)
         {
-            isFetching = false;
+            NotificationService.Notify(NotificationSeverity.Warning, "Not Allowed", "You can only add expenses for the current month.");
+            return;
         }
+
+        await DialogService.OpenAsync<AddExpensePage>("Add Expense",
+            new Dictionary<string, object> { { "UserId", userId }, { "StartDate", args.Start.Date } },
+            new DialogOptions { Width = "420px", Resizable = true, Draggable = true });
+
+        await FetchExpensesForCurrentMonth();
+    }
+
+    async Task OnAppointmentSelect(SchedulerAppointmentSelectEventArgs<Expenses> args)
+    {
+        await DialogService.OpenAsync<ViewExpense>("View Expense",
+            new Dictionary<string, object> { { "Expense", args.Data }, { "UserId", userId } },
+            new DialogOptions { Width = "420px", Resizable = true });
+
+        await FetchExpensesForCurrentMonth();
+    }
+
+    void OnAppointmentRender(SchedulerAppointmentRenderEventArgs<Expenses> args)
+    {
+        args.Attributes["style"] = "background: #3f51b5; color: white; border-radius: 8px; font-weight: 500;";
+        args.Attributes["title"] = $"{args.Data.Description} · {args.Data.Amount:N0} €";
     }
 }
 
+<style>
+    .rz-scheduler .rz-scheduler-view-month .rz-scheduler-cell-today {
+        background: rgba(99, 102, 241, 0.1) !important;
+        border: 2px solid #6366f1 !important;
+    }
 
+    .loading-dots span {
+        display: inline-block;
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        background: #6366f1;
+        margin: 0 5px;
+        animation: dotPulse 1.4s infinite ease-in-out both;
+    }
+
+        .loading-dots span:nth-child(1) {
+            animation-delay: -0.32s;
+        }
+
+        .loading-dots span:nth-child(2) {
+            animation-delay: -0.16s;
+        }
+
+        .loading-dots span:nth-child(3) {
+            animation-delay: 0s;
+        }
+
+    @@keyframes dotPulse {
+        0%, 80%, 100% {
+            transform: scale(0.6);
+            opacity: 0.5;
+        }
+
+        40% {
+            transform: scale(1);
+            opacity: 1;
+        }
+    }
+
+    /* Hide the Previous/Next/Today buttons */
+    .rz-scheduler-nav-prev-next {
+        display: none !important;
+    }
+
+    /* Center the month label */
+    .rz-scheduler-nav {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+    }
+
+    /* Ensure the month label and view buttons are spaced nicely */
+    .rz-scheduler-nav-title {
+        margin-right: 20px; /* Space between the label and view buttons */
+    }
+
+    /* Ensure the scheduler content remains interactive */
+    .rz-scheduler-content {
+        pointer-events: auto !important;
+    }
+</style>

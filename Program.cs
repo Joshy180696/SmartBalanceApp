@@ -1,3 +1,4 @@
+using ApexCharts;
 using Blazored.LocalStorage;
 using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.AspNetCore.Components.Web;
@@ -10,6 +11,7 @@ var builder = WebAssemblyHostBuilder.CreateDefault(args);
 
 
 builder.Services.AddRadzenComponents();
+builder.Services.AddApexCharts();
 
 // HttpClient for general API requests (with TokenHandler)
 builder.Services.AddHttpClient("SmartBalanceApi", client =>

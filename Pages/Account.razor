@@ -7,86 +7,127 @@
 @inject JwtAuthenticationStateProvider AuthProvider
 @inject NavigationManager Navigation
 @inject IHttpClientFactory HttpClientFactory
-@inject DialogService DialogService
 @attribute [Authorize]
 
 <PageTitle>Account - SmartBalance</PageTitle>
 
-<RadzenStack AlignItems="AlignItems.Center" JustifyContent="JustifyContent.Center" Style="height: 100%; padding: 20px;">
-    <RadzenHeading Size="H2" Text="Account Info" Style="color: #3f51b5;" />
+<RadzenStack Gap="2rem" Class="rz-p-4 rz-p-md-8">
 
-    <!-- Profile Picture -->
-@*     <div style="margin-top: 15px; text-align:center;">
-        <div style="
-            width:120px;
-            height:120px;
-            border-radius:50%;
-            border:3px solid #3f51b5;
-            overflow:hidden;
-            display:flex;
-            align-items:center;
-            justify-content:center;
-            background-color:#f5f5f5;">
+    <div class="rz-text-align-center rz-my-6">
+        <RadzenText TextStyle="TextStyle.H3" Class="rz-mb-2" Style="color :#3f51b5"><b>Account Overview</b></RadzenText>
+    </div>
 
-            @if (!string.IsNullOrEmpty(ProfileImageUrl))
-            {
-                <img src="@ProfileImageUrl" style="width:100%; height:100%; object-fit:cover;" />
-            }
-            else
-            {
-                <i class="material-icons" style="font-size:60px; color:#3f51b5;">person</i>
-            }
+    @if (account == null)
+    {
+        <div class="rz-text-align-center rz-py-16">
+            <RadzenProgressBarCircular Size="ProgressBarCircularSize.Large"
+                                       ShowValue="false"
+                                       Style="width: 80px; height: 80px;" />
+
+            <RadzenText TextStyle="TextStyle.H6"
+                        Class="rz-mt-6 rz-display-block"
+                        Style="color: #555; font-weight: 500;">
+                Loading your profile...
+            </RadzenText>
+
+            <div class="loading-dots rz-mt-4">
+                <span></span><span></span><span></span>
+            </div>
         </div>
-    </div> *@
+    }
+    else
+    {
+        <!-- Use ONLY RadzenTemplateForm (no EditForm) -->
+        <RadzenTemplateForm Data="@account" Submit="@(async (AccountInfo args) => await Submit(args))">
+            
+            <RadzenRow Gap="2rem">
+                <RadzenColumn Size="12" SizeLG="7">
+                    <RadzenCard Class="h-100 rz-shadow-3 rz-border-radius-3">
+                        <RadzenStack Gap="1.5rem" Class="rz-p-6">
+                            <div>
+                                <RadzenIcon Icon="person" Style="color: #3f51b5; font-size: 1.5rem;" />
+                                <strong class="rz-ml-2" style="font-size: 1.2rem; color: #3f51b5;">Personal Information</strong>
+                            </div>
 
-
-</RadzenStack>
-@if (account == null)
-{
-    <RadzenText TextStyle="TextStyle.Subtitle1" TextAlign="TextAlign.Center" Style="margin-top: 20px;"> Loading account... 🚀 </RadzenText>
-}
-else
-{
-    <RadzenTemplateForm Data="@account" Submit="@((AccountInfo args) => Submit(args))">
-        <RadzenRow Gap="2rem" class="rz-p-0 rz-p-lg-4">
-            <RadzenColumn Size="12" SizeMD="6">
-                <RadzenStack>
-                    <RadzenFieldset Text="Personal Info">
-                        <RadzenStack Gap="1rem">
-                            <RadzenRow AlignItems="AlignItems.Center">
-                                <RadzenColumn Size="12" SizeMD="4">
-                                    <RadzenLabel Text="First Name" />
+                            <RadzenRow Gap="1rem">
+                                <RadzenColumn Size="12" SizeMD="6">
+                                    <RadzenLabel Text="First Name" Class="rz-mb-2" />
+                                    <RadzenTextBox @bind-Value="@account.FirstName" Style="width:100%" Disabled />
                                 </RadzenColumn>
-                                <RadzenColumn Size="12" SizeMD="8">
-                                    <RadzenTextBox @bind-Value="account.FirstName" Style="width:100%" Disabled="true" />
-                                </RadzenColumn>
-                            </RadzenRow> <RadzenRow AlignItems="AlignItems.Center">
-                                <RadzenColumn Size="12" SizeMD="4"> <RadzenLabel Text="Last Name" /> </RadzenColumn>
-                                <RadzenColumn Size="12" SizeMD="8">
-                                    <RadzenTextBox @bind-Value="account.LastName" Style="width:100%" Disabled="true" />
+                                <RadzenColumn Size="12" SizeMD="6">
+                                    <RadzenLabel Text="Last Name" Class="rz-mb-2" />
+                                    <RadzenTextBox @bind-Value="@account.LastName" Style="width:100%" Disabled />
                                 </RadzenColumn>
                             </RadzenRow>
-                            <RadzenRow AlignItems="AlignItems.Center">
-                                <RadzenColumn Size="12" SizeMD="4">
-                                    <RadzenLabel Text="Bio" />
-                                </RadzenColumn> <RadzenColumn Size="12" SizeMD="8">
-                                    <RadzenTextBox @bind-Value="account.Bio" Style="width:100%" />
 
-                                </RadzenColumn>
-                            </RadzenRow>
+                            <RadzenLabel Text="Bio" Class="rz-mb-2" />
+                            <RadzenTextArea @bind-Value="@account.Bio" Rows="3" Style="width:100%" Placeholder="Tell us about yourself..." />
+
+                            <RadzenLabel Text="Phone Number" Class="rz-mt-4 rz-mb-2" />
+                            <RadzenTextBox @bind-Value="@account.ContactNumber" Style="width:100%" Placeholder="+351 912 345 678" />
+
+                            <RadzenLabel Text="Address" Class="rz-mt-4 rz-mb-2" />
+                            <RadzenTextBox @bind-Value="@account.Address" Style="width:100%" Placeholder="Rua Example, Lisboa" />
                         </RadzenStack>
-                    </RadzenFieldset> <RadzenFieldset Text="Contact Info"> <RadzenStack Gap="1rem"> <RadzenRow AlignItems="AlignItems.Center"> <RadzenColumn Size="12" SizeMD="4"> <RadzenLabel Text="Phone" /> </RadzenColumn> <RadzenColumn Size="12" SizeMD="8"> <RadzenTextBox @bind-Value="account.ContactNumber" Style="width:100%" /> </RadzenColumn> </RadzenRow> <RadzenRow AlignItems="AlignItems.Center"> <RadzenColumn Size="12" SizeMD="4"> <RadzenLabel Text="Address" /> </RadzenColumn> <RadzenColumn Size="12" SizeMD="8"> <RadzenTextBox @bind-Value="account.Address" Style="width:100%" /> </RadzenColumn> </RadzenRow> </RadzenStack> </RadzenFieldset>
-                </RadzenStack>
-            </RadzenColumn> <RadzenColumn Size="12" SizeMD="6"> <RadzenStack> <RadzenFieldset Text="Financial Info"> <RadzenStack Gap="1rem"> <RadzenRow AlignItems="AlignItems.Center"> <RadzenColumn Size="12" SizeMD="4"> <RadzenLabel Text="Monthly Income" /> </RadzenColumn> <RadzenColumn Size="12" SizeMD="8"> <RadzenNumeric @bind-Value="account.MonthlyIncome" Style="width:100%" /> </RadzenColumn> </RadzenRow> </RadzenStack> </RadzenFieldset> </RadzenStack> </RadzenColumn>
-        </RadzenRow> <RadzenStack Orientation="Orientation.Horizontal" JustifyContent="JustifyContent.Center" Gap="1rem" class="rz-mt-8 rz-mb-4"> <RadzenButton ButtonType="ButtonType.Submit" Size="ButtonSize.Large" Icon="save" Text="Save" BusyText="Saving..." IsBusy="@isLoading" Style="min-width: 120px;" /> <RadzenButton ButtonStyle="ButtonStyle.Light" Variant="Variant.Flat" Size="ButtonSize.Large" Icon="cancel" Text="Cancel" Click="@Cancel" /> </RadzenStack>
-    </RadzenTemplateForm>
-}
+                    </RadzenCard>
+                </RadzenColumn>
+
+                <!-- Financial Info - Big Card -->
+                <RadzenColumn Size="12" SizeLG="5">
+                    <RadzenCard Class="h-100" Style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
+                        <RadzenStack Gap="2rem" Class="rz-p-8">
+                            <div>
+                                <RadzenIcon Icon="euro_symbol" Style="font-size: 2.5rem; opacity: 0.9;" />
+                                <RadzenText TextStyle="TextStyle.H5" Class="rz-ml-3">
+                                    <b>Monthly Income</b>
+                                </RadzenText>
+                            </div>
+
+                            <div class="rz-text-align-center">
+                                <RadzenText TextStyle="TextStyle.H1" Class="rz-m-0">
+                                    @($"{account.MonthlyIncome:N0} €")
+                                </RadzenText>
+                                <RadzenText TextStyle="TextStyle.Body1" Class="rz-opacity-90">
+                                    per month · used for budgeting
+                                </RadzenText>
+                            </div>
+
+                            <RadzenNumeric @bind-Value="@account.MonthlyIncome"
+                                           Min="0" Step="100" 
+                                           ShowUpDown="false"
+                                           Style="width: 100%; font-size: 1.5rem; text-align: center;"
+                                           Class="rz-background-color-white rz-color-black-alpha-90" />
+                        </RadzenStack>
+                    </RadzenCard>
+                </RadzenColumn>
+            </RadzenRow>
+
+            <!-- Save / Cancel Buttons -->
+            <div class="rz-text-align-center rz-mt-8">
+                <RadzenButton ButtonType="ButtonType.Submit"
+                              Icon="save"
+                              Text="Save Changes"
+                              ButtonStyle="ButtonStyle.Success"
+                              Size="ButtonSize.Large"
+                              IsBusy="@isLoading"
+                              BusyText="Saving..." 
+                              Class="rz-mr-4" />
+
+                <RadzenButton Text="Cancel"
+                              ButtonStyle="ButtonStyle.Light"
+                              Click="@Cancel"
+                              Size="ButtonSize.Large" />
+            </div>
+
+        </RadzenTemplateForm>
+    }
+</RadzenStack>
 
 @code {
     private AccountInfo? account;
-    private string username = "User"; 
-    private string userId = string.Empty; 
-    private bool isLoading = false;  
+    private string username = "User";
+    private string userId = string.Empty;
+    private bool isLoading = false;
 
     protected override async Task OnInitializedAsync()
     {
@@ -95,26 +136,26 @@ else
             var authState = await AuthProvider.GetAuthenticationStateAsync();
             if (authState.User.Identity?.IsAuthenticated ?? false)
             {
-                var claims = authState.User.Claims; var userNameClaim = claims.FirstOrDefault(c => c.Type == ClaimTypes.Name || c.Type == "unique_name" || c.Type == "username");
+                var claims = authState.User.Claims;
+                var userNameClaim = claims.FirstOrDefault(c => c.Type == ClaimTypes.Name || c.Type == "unique_name" || c.Type == "username");
                 username = userNameClaim?.Value ?? "User";
-                var userIdClaim = claims.FirstOrDefault(c => c.Type == ClaimTypes.NameIdentifier || c.Type == "sub"); userId = userIdClaim?.Value ?? string.Empty;
+
+                var userIdClaim = claims.FirstOrDefault(c => c.Type == ClaimTypes.NameIdentifier || c.Type == "sub");
+                userId = userIdClaim?.Value ?? string.Empty;
+
                 if (!string.IsNullOrEmpty(userId))
                 {
                     account = await FetchUserAccount(userId);
                 }
                 else
                 {
-                    NotificationService.Notify(new NotificationMessage { Severity = NotificationSeverity.Warning, Summary = "Error", Detail = "User ID not found. Please log in again.", Duration = 4000 });
+                    NotificationService.Notify(NotificationSeverity.Warning, "Error", "User ID not found. Please log in again.");
                 }
-            }
-            else
-            {
-                username = "Guest";
             }
         }
         catch (Exception)
         {
-            username = "User"; NotificationService.Notify(new NotificationMessage { Severity = NotificationSeverity.Error, Summary = "Error", Detail = "Failed to initialize user data.", Duration = 4000 });
+            NotificationService.Notify(NotificationSeverity.Error, "Error", "Failed to initialize user data.");
         }
     }
 
@@ -123,35 +164,36 @@ else
         try
         {
             var httpClient = HttpClientFactory.CreateClient("SmartBalanceApi");
-            string url = $"https://smartbalanceapi.onrender.com/api/Account/{userId}";
-            var response = await httpClient.GetAsync(url);
+            var response = await httpClient.GetAsync($"api/Account/{userId}");
+
             if (response.IsSuccessStatusCode)
             {
                 var apiResponse = await response.Content.ReadFromJsonAsync<AccountResponse>();
-                if (apiResponse!.Success == true && apiResponse.UserAccount != null) { account = apiResponse.UserAccount; return account; }
+                if (apiResponse?.Success == true && apiResponse.UserAccount != null)
+                {
+                    return apiResponse.UserAccount;
+                }
             }
+
             if (response.StatusCode == System.Net.HttpStatusCode.Unauthorized)
             {
-                NotificationService.Notify(new NotificationMessage { Severity = NotificationSeverity.Error, Summary = "Unauthorized", Detail = "Your session has expired. Please log in again.", Duration = 4000 });
-                await AuthProvider.LogoutAsync(); 
+                NotificationService.Notify(NotificationSeverity.Error, "Unauthorized", "Session expired. Logging out...");
+                await AuthProvider.LogoutAsync();
                 Navigation.NavigateTo("/login");
             }
-            return null!;
-        }
-        catch (Exception) 
-        {
-            NotificationService.Notify(new NotificationMessage { Severity = NotificationSeverity.Error, Summary = "Error", Detail = "Failed to load account.", Duration = 4000 }); return null!;
-        }
-        finally
-        {
-            StateHasChanged();
-        }
 
+            return new AccountInfo();
+        }
+        catch (Exception)
+        {
+            NotificationService.Notify(NotificationSeverity.Error, "Error", "Failed to load account.");
+            return new AccountInfo();
+        }
     }
 
-    private async Task<AccountInfo?> Submit(AccountInfo model)
+    private async Task Submit(AccountInfo model)
     {
-        isLoading = true;                    
+        isLoading = true;
         StateHasChanged();
 
         var updatedAccount = new UpdatedAccountInfo
@@ -165,102 +207,91 @@ else
         try
         {
             var httpClient = HttpClientFactory.CreateClient("SmartBalanceApi");
-            string url = $"https://smartbalanceapi.onrender.com/api/Account/update/{userId}";
-            var response = await httpClient.PatchAsJsonAsync(url, updatedAccount);
-          
+            var response = await httpClient.PatchAsJsonAsync($"api/Account/update/{userId}", updatedAccount);
+
             if (response.IsSuccessStatusCode)
             {
                 var apiResponse = await response.Content.ReadFromJsonAsync<UpdatedAccountResponse>();
-
                 if (apiResponse?.Success == true && apiResponse.UpdatedAccountInfo != null)
                 {
                     var result = apiResponse.UpdatedAccountInfo;
-
                     account!.Address = result.Address ?? account.Address;
                     account.ContactNumber = result.ContactNumber ?? account.ContactNumber;
                     account.Bio = result.Bio;
                     account.MonthlyIncome = result.MonthlyIncome ?? account.MonthlyIncome;
 
-                    NotificationService.Notify(new NotificationMessage
-                    {
-                        Severity = NotificationSeverity.Success,
-                        Summary = "Success",
-                        Detail = "Account updated successfully!",
-                        Duration = 4000
-                    });
-                    DialogService.Close(true); 
-
-                    return account;
-                }
-                else
-                {
-                    var errorMessage = apiResponse?.ErrorMessage ?? "Unknown error occurred.";
-                    NotificationService.Notify(new NotificationMessage
-                    {
-                        Severity = NotificationSeverity.Error,
-                        Summary = "Update Failed",
-                        Detail = errorMessage,
-                        Duration = 4000
-                    });
-                    return null;
+                    NotificationService.Notify(NotificationSeverity.Success, "Success", "Account updated successfully!");
                 }
             }
             else if (response.StatusCode == System.Net.HttpStatusCode.Unauthorized)
             {
-                NotificationService.Notify(new NotificationMessage
-                {
-                    Severity = NotificationSeverity.Error,
-                    Summary = "Unauthorized",
-                    Detail = "Your session has expired. Please log in again.",
-                    Duration = 4000
-                });
+                NotificationService.Notify(NotificationSeverity.Error, "Unauthorized", "Session expired.");
                 await AuthProvider.LogoutAsync();
                 Navigation.NavigateTo("/login", forceLoad: true);
-                return null;
             }
             else
             {
-                var errorContent = await response.Content.ReadAsStringAsync();
-                NotificationService.Notify(new NotificationMessage
-                {
-                    Severity = NotificationSeverity.Error,
-                    Summary = "Error",
-                    Detail = $"Failed to update account: {response.StatusCode} - {errorContent}",
-                    Duration = 4000
-                });
-                return null;
+                var error = await response.Content.ReadAsStringAsync();
+                NotificationService.Notify(NotificationSeverity.Error, "Error", $"Update failed: {error}");
             }
         }
         catch (Exception ex)
         {
-            NotificationService.Notify(new NotificationMessage
-            {
-                Severity = NotificationSeverity.Error,
-                Summary = "Error",
-                Detail = $"An unexpected error occurred while updating your account. {ex.Message}",
-                Duration = 4000
-            });
-
-            return null;
+            NotificationService.Notify(NotificationSeverity.Error, "Error", ex.Message);
         }
         finally
         {
             isLoading = false;
-            StateHasChanged(); 
+            StateHasChanged();
         }
     }
 
     private void Cancel()
-    { 
+    {
         Navigation.NavigateTo("/home");
     }
-
 }
 
 <style>
-    .rz-fieldset legend {
-        color: #3f51b5 !important;
-        font-weight: 600;
-        font-size: 1.1rem;
+    .rz-card:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 20px 40px rgba(0,0,0,0.1) !important;
+        transition: all 0.3s ease;
     }
+
+  
+    .loading-dots span {
+        display: inline-block;
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: #6366f1;
+        margin: 0 4px;
+        animation: dotPulse 1.4s infinite ease-in-out both;
+    }
+
+    .loading-dots span:nth-child(1) {
+        animation-delay: -0.32s;
+    }
+
+    .loading-dots span:nth-child(2) {
+        animation-delay: -0.16s;
+    }
+
+    .loading-dots span:nth-child(3) {
+        animation-delay: 0s;
+    }
+
+    @@keyframes dotPulse {
+        0%, 80%, 100% {
+            transform: scale(0.6);
+            opacity: 0.5;
+        }
+
+        40% {
+            transform: scale(1);
+            opacity: 1;
+        }
+    }
+
 </style>

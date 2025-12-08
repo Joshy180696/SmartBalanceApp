@@ -92,7 +92,6 @@
         try
         {
             var response = await httpClient.PostAsJsonAsync("https://smartbalanceapi.onrender.com/api/Authentication/login", model);
-            // var response = await httpClient.PostAsJsonAsync("http://localhost:5048/api/Authentication/login", model);
             var rawResponse = await response.Content.ReadAsStringAsync();
 
             if (response.IsSuccessStatusCode)
@@ -116,8 +115,8 @@
         }
         finally
         {
-            isLoading = false; // Stop loading
-            StateHasChanged(); // Update UI to hide spinner
+            isLoading = false; 
+            StateHasChanged(); 
         }
     }
 }

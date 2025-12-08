@@ -1,143 +1,287 @@
 ﻿@page "/dashboard"
 @using Microsoft.AspNetCore.Authorization
-@using SmartBalanceBlazor.Auth
 @using System.Security.Claims
-@using static SmartBalanceBlazor.ViewModels.ExpenseViewModels
+@using SmartBalanceBlazor.Auth
+@using SmartBalanceBlazor.ViewModels.Dashboard
+@using Radzen
+@using System.Globalization
+@using static SmartBalanceBlazor.ViewModels.AccountViewModels
 @inject NavigationManager Navigation
 @inject IHttpClientFactory HttpClientFactory
 @inject JwtAuthenticationStateProvider AuthProvider
+@inject NotificationService NotificationService
 @attribute [Authorize]
 
 <PageTitle>Dashboard - SmartBalance</PageTitle>
 
-<RadzenStack AlignItems="AlignItems.Center" JustifyContent="JustifyContent.Center" Style="padding: 20px;">
-    <RadzenHeading Size="H2" Text="Dashboard" Style="color: #3f51b5;" />
+<RadzenStack Gap="2rem" Class="rz-p-4 rz-p-md-8">
 
-    @if (isLoading)
-    {
-        <RadzenText TextStyle="TextStyle.Subtitle1" Style="margin-top: 20px;">
-            Loading chart... 🚀
-        </RadzenText>
+    <!-- Big Header -->
+    <div class="rz-text-align-center rz-my-6">
+        <RadzenText TextStyle="TextStyle.H3" Class="rz-mb-2" Style="color :#3f51b5"><b>Financial Overview</b></RadzenText>
+    </div>
+
+    @if (isLoading) 
+    { 
+        <div class="rz-text-align-center rz-py-16">
+            <RadzenProgressBarCircular Size="ProgressBarCircularSize.Large"
+                                       ShowValue="false"
+                                       Style="width: 80px; height: 80px;" />
+
+            <RadzenText TextStyle="TextStyle.H6"
+                        Class="rz-mt-6 rz-display-block"
+                        Style="color: #555; font-weight: 500;">
+                Loading your financial overview...
+            </RadzenText>
+
+            <div class="loading-dots rz-mt-4">
+                <span></span><span></span><span></span>
+            </div>
+        </div>
     }
-    else if (monthlyBalances.Any())
+    else if (dashboard == null || !dashboard.Success)
     {
-        <RadzenCard Style="margin-top: 20px; width: 100%; max-width: 800px;">
-            <RadzenHeading Size="H4" Text="Monthly Balance Overview (2025)" Style="margin-bottom: 20px;" />
-            <RadzenChart>
-                <RadzenColumnSeries Data="@monthlyBalances" CategoryProperty="Month" ValueProperty="Balance">
-                    <RadzenSeriesDataLabels Visible="true" />
-                </RadzenColumnSeries>
-                <RadzenCategoryAxis Padding="20">
-                    <RadzenAxisTitle Text="Month" />
-                </RadzenCategoryAxis>
-                <RadzenValueAxis>
-                    <RadzenAxisTitle Text="Balance (€)" />
-                    <RadzenGridLines Visible="true" />
-         @*            <RadzenAxisLine Visible="true" /> *@
-                </RadzenValueAxis>
-            </RadzenChart>
-        </RadzenCard>
+        <RadzenAlert AlertStyle="AlertStyle.Danger" Variant="Variant.Filled" Shade="Shade.Lighter" Class="rz-my-6">
+            <b>Oops!</b> @(dashboard?.ErrorMessage ?? "Failed to load dashboard data.")
+            <RadzenButton Text="Retry" Click="@LoadDashboard" Variant="Variant.Flat" Shade="Shade.Lighter" Class="rz-ml-4" />
+        </RadzenAlert>
     }
     else
     {
-        <RadzenText TextStyle="TextStyle.Subtitle1" Style="margin-top: 20px;">
-            No data available for 2025. Add some expenses to see the chart! 📊
-        </RadzenText>
-    }
+        <!-- 1. CURRENT MONTH SUMMARY – The Hero Section -->
+        <RadzenRow Gap="2rem" JustifyContent="JustifyContent.Center">
+            <!-- Total Income -->
+            <RadzenColumn Size="12" SizeMD="6" SizeLG="4">
+                <RadzenCard Class="h-100 rz-shadow-5 rz-border-radius-3" Style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); color: white;">
+                    <div class="rz-p-6 rz-text-align-center">
+                        <RadzenIcon Icon="account_balance_wallet" Style="font-size: 3rem; opacity: 0.9;" />
+                        <RadzenText TextStyle="TextStyle.Subtitle1" Class="rz-mt-4 rz-mb-0">Monthly Income</RadzenText>
+                        <RadzenText TextStyle="TextStyle.H3" Class="rz-mt-2">
+                            @($"{monthlyIncome:N0} €")
+                        </RadzenText>
+                    </div>
+                </RadzenCard>
+            </RadzenColumn>
 
-    <RadzenButton Click="@(() => Navigation.NavigateTo("/home"))" Text="Back to Home" Style="margin-top: 20px; background-color: #3f51b5; color: white;" />
+            <!-- Spent So Far -->
+            <RadzenColumn Size="12" SizeMD="6" SizeLG="4">
+                <RadzenCard Class="h-100 rz-shadow-5 rz-border-radius-3" Style="background: linear-gradient(135deg, #fa709a 0%, #fee140 100%); color: white;">
+                    <div class="rz-p-6 rz-text-align-center">
+                        <RadzenIcon Icon="shopping_cart" Style="font-size: 3rem; opacity: 0.9;" />
+                        <RadzenText TextStyle="TextStyle.Subtitle1" Class="rz-mt-4 rz-mb-0">Spent This Month</RadzenText>
+                        <RadzenText TextStyle="TextStyle.H3" Class="rz-mt-2">
+                            @($"{CurrentMonthSpent:N0} €")
+                        </RadzenText>
+                    </div>
+                </RadzenCard>
+            </RadzenColumn>
+
+            <!-- Remaining Balance - DYNAMIC GREEN/RED -->
+            <RadzenColumn Size="12" SizeMD="12" SizeLG="4">
+                <RadzenCard Class="h-100 rz-shadow-5 rz-border-radius-3"
+                            Style="@(RemainingBalance >= 0
+                                                            ? "background: linear-gradient(135deg, #84fab0 0%, #8fd3f4 100%); color: white;"
+                                                            : "background: linear-gradient(135deg, #ff9a9e 0%, #fad0c4 100%); color: white;")">
+
+                <div class="rz-p-8 rz-text-align-center">
+                    <RadzenIcon Icon="@(RemainingBalance >= 0 ? "trending_up" : "trending_down")"
+                                Style="font-size: 4rem; opacity: 0.9;" />
+                    <RadzenText TextStyle="TextStyle.H6" Class="rz-mt-4 rz-mb-0">
+                        @(RemainingBalance >= 0 ? "Remaining to spend" : "You are in debt")
+                    </RadzenText>
+                    <RadzenText TextStyle="TextStyle.H2" Class="rz-mt-3">
+                        <b>@($"{RemainingBalance:N0} €")</b>
+                    </RadzenText>
+                </div>
+            </RadzenCard>
+        </RadzenColumn>
+    </RadzenRow>
+
+        <!-- 2. Year-to-Date Total (your Option 1) -->
+        <RadzenCard Class="rz-shadow-4 rz-border-radius-3" Style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
+            <RadzenStack Orientation="Orientation.Horizontal" JustifyContent="JustifyContent.SpaceBetween" AlignItems="AlignItems.Center" Class="rz-p-8">
+                <div>
+                    <RadzenText TextStyle="TextStyle.H5" Class="rz-mb-2">Total Spent in @DateTime.Now.Year</RadzenText>
+                    <RadzenText TextStyle="TextStyle.H1" Class="rz-m-0">
+                        @(dashboard.AnnualExpenses?.FirstOrDefault()?.Total.ToString("N0") ?? "0") €
+                    </RadzenText>
+                    <RadzenText TextStyle="TextStyle.Body2" Class="rz-opacity-80">Year-to-date</RadzenText>
+                </div>
+                <RadzenIcon Icon="calendar_today" Style="font-size: 5rem; opacity: 0.3;" />
+            </RadzenStack>
+        </RadzenCard>
+
+        <!-- 3. Last 12 Months Trend (Line Chart) -->
+        <RadzenCard Class="rz-shadow-3 rz-border-radius-2">
+            <RadzenStack Orientation="Orientation.Horizontal" JustifyContent="JustifyContent.SpaceBetween" AlignItems="AlignItems.Center" Class="rz-px-6 rz-pt-6">
+                <RadzenText TextStyle="TextStyle.H5"><b>Monthly Spending Trend</b></RadzenText>
+                <RadzenIcon Icon="show_chart" Style="font-size: 2rem; color: #6366f1;" />
+            </RadzenStack>
+            <RadzenChart Style="height: 380px;" class="rz-mx-4 rz-mb-6">
+                <RadzenLineSeries Data="@dashboard?.MonthlyExpenses?.OrderBy(m => m.Month)"
+                                  CategoryProperty="MonthName"
+                                  ValueProperty="Total"
+                                  Title="Monthly Expenses"
+                                  Smooth="true"
+                                  Stroke="#6366f1" />
+                <RadzenCategoryAxis Padding="20" />
+                <RadzenValueAxis Formatter="@(v => $"{v:0}€")" />
+                <RadzenTooltip />
+                <RadzenLegend Position="LegendPosition.Bottom" />
+            </RadzenChart>
+        </RadzenCard>
+
+        <!-- 4. Quick Actions -->
+        <div class="rz-text-align-center rz-mt-8">
+            <RadzenButton Icon="add_circle" Text="Manage Expenses" ButtonStyle="ButtonStyle.Success" Size="ButtonSize.Large" Class="rz-mr-4"
+                          Click="@(() => Navigation.NavigateTo("/home"))" />
+            <RadzenButton Icon="refresh" Text="Refresh" ButtonStyle="ButtonStyle.Secondary" Size="ButtonSize.Large"
+                          Click="@LoadDashboard" />
+        </div>
+    }
 </RadzenStack>
 
-@code {
+    @code {
+    private DashboardResponse? dashboard;
     private string userId = string.Empty;
-    private decimal monthlyIncome = 0m;
-    private List<MonthlyBalance> monthlyBalances = new List<MonthlyBalance>();
     private bool isLoading = true;
+    private decimal monthlyIncome = 0m;
+    private decimal CurrentMonthSpent =>
 
-    // Class to hold monthly balance data for the chart
-    private class MonthlyBalance
-    {
-        public string Month { get; set; }
-        public decimal Balance { get; set; }
-    }
+    dashboard?.MonthlyExpenses?.FirstOrDefault(m => m.Month == DateTime.Now.Month)?.Total ?? 0;
+
+    private decimal RemainingBalance =>
+        (monthlyIncome) - CurrentMonthSpent;
+
+    private IEnumerable<AnnualExpensePoint> ExistingAnnualExpenses
+    => dashboard?.AnnualExpenses ?? Enumerable.Empty<AnnualExpensePoint>();
+
+    private string FormatYear(object value)
+        => value is double d ? ((int)d).ToString() :
+           value is int i ? i.ToString() :
+           value?.ToString() ?? "";
+
+    private decimal CurrentMonthTotal =>
+        dashboard?.MonthlyExpenses?.FirstOrDefault(x => x.Month == DateTime.Now.Month)?.Total ?? 0;
+
+    private decimal TotalLast12Months =>
+        dashboard?.MonthlyExpenses?.Sum(x => x.Total) ?? 0;
 
     protected override async Task OnInitializedAsync()
     {
+        var authState = await AuthProvider.GetAuthenticationStateAsync();
+        var user = authState.User;
+        var claims = user.Claims;
+        var userNameClaim = claims.FirstOrDefault(c => c.Type == ClaimTypes.Name || c.Type == "unique_name" || c.Type == "username");
+
+        if (!user.Identity?.IsAuthenticated ?? false)
+        {
+            Navigation.NavigateTo("/login");
+            return;
+        }
+
+        userId = user.FindFirst(c => c.Type == ClaimTypes.NameIdentifier || c.Type == "sub")?.Value ?? "";
+ 
+
+        if (string.IsNullOrEmpty(userId))
+        {
+            Navigation.NavigateTo("/login");
+            return;
+        }
+
+        await LoadDashboard();
+    }
+
+    private async Task LoadDashboard()
+    {
+        isLoading = true;
+        StateHasChanged();
+
         try
         {
-            // Get user info
-            var authState = await AuthProvider.GetAuthenticationStateAsync();
-            if (authState.User.Identity?.IsAuthenticated ?? false)
+            var client = HttpClientFactory.CreateClient("SmartBalanceApi");
+            var response = await client.GetAsync($"api/Dashboard/{userId}");
+
+            if (response.IsSuccessStatusCode)
             {
-                var claims = authState.User.Claims;
-                var userIdClaim = claims.FirstOrDefault(c => c.Type == ClaimTypes.NameIdentifier || c.Type == "sub");
-                userId = userIdClaim?.Value ?? string.Empty;
-
-                var incomeClaim = claims.FirstOrDefault(c => c.Type == "monthlyIncome" || c.Type == "income");
-                if (incomeClaim != null && decimal.TryParse(incomeClaim.Value, out var income))
-                {
-                    monthlyIncome = income;
-                }
-                else
-                {
-                    monthlyIncome = 0m;
-                }
-
-                if (!string.IsNullOrEmpty(userId))
-                {
-                    await FetchMonthlyBalances();
-                }
+                dashboard = await response.Content.ReadFromJsonAsync<DashboardResponse>();
+                await LoadMonthlyIncome();
+            }
+            else if (response.StatusCode == System.Net.HttpStatusCode.Unauthorized)
+            {
+                NotificationService.Notify(NotificationSeverity.Warning, "Session expired", "Logging out...");
+                await Task.Delay(1500);
+                await AuthProvider.LogoutAsync();
+                Navigation.NavigateTo("/login", forceLoad: true);
+            }
+            else
+            {
+                var errorContent = await response.Content.ReadAsStringAsync();
+                NotificationService.Notify(NotificationSeverity.Error, "Error", $"Could not load dashboard: {errorContent}");
             }
         }
         catch (Exception ex)
         {
-            // Handle error (e.g., show notification)
-            Console.WriteLine($"Error initializing dashboard: {ex.Message}");
+            NotificationService.Notify(NotificationSeverity.Error, "Network Error", ex.Message);
         }
         finally
         {
             isLoading = false;
             StateHasChanged();
         }
-    }
+    }   
 
-    private async Task FetchMonthlyBalances()
-    {
-        var currentYear = DateTime.Now.Year; // Use 2025 for now
-        monthlyBalances.Clear();
-
-        // Loop through all 12 months
-        for (int month = 1; month <= 12; month++)
-        {
-            var expenses = await FetchExpensesForMonth(userId, currentYear, month);
-            var totalExpenses = expenses?.Sum(e => e.Amount) ?? 0m;
-            var balance = monthlyIncome - totalExpenses;
-
-            monthlyBalances.Add(new MonthlyBalance
-            {
-                Month = new DateTime(currentYear, month, 1).ToString("MMM"),
-                Balance = balance
-            });
-        }
-    }
-
-    private async Task<List<Expenses>> FetchExpensesForMonth(string userId, int year, int month)
+    private async Task LoadMonthlyIncome()
     {
         try
         {
-            var httpClient = HttpClientFactory.CreateClient("SmartBalanceApi");
-            string url = $"https://smartbalanceapi.onrender.com/api/Expenses/{userId}?year={year}&month={month}";
-            var response = await httpClient.GetAsync(url);
-
-            if (response.IsSuccessStatusCode)
+            var client = HttpClientFactory.CreateClient("SmartBalanceApi");
+            var resp = await client.GetAsync($"api/Account/{userId}");
+            if (resp.IsSuccessStatusCode)
             {
-                return await response.Content.ReadFromJsonAsync<List<Expenses>>() ?? new List<Expenses>();
+                var acc = await resp.Content.ReadFromJsonAsync<AccountResponse>();
+                monthlyIncome = acc?.UserAccount?.MonthlyIncome ?? 0m;
             }
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Error fetching expenses for {year}-{month}: {ex.Message}");
+            NotificationService.Notify(NotificationSeverity.Error, "Network Error", ex.Message);
         }
-        return new List<Expenses>();
     }
 }
+
+<style>
+    .loading-dots span {
+        display: inline-block;
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: #6366f1;
+        margin: 0 4px;
+        animation: dotPulse 1.4s infinite ease-in-out both;
+    }
+
+        .loading-dots span:nth-child(1) {
+            animation-delay: -0.32s;
+        }
+
+        .loading-dots span:nth-child(2) {
+            animation-delay: -0.16s;
+        }
+
+        .loading-dots span:nth-child(3) {
+            animation-delay: 0s;
+        }
+
+    @@keyframes dotPulse {
+        0%, 80%, 100% {
+            transform: scale(0.6);
+            opacity: 0.5;
+        }
+
+        40% {
+            transform: scale(1);
+            opacity: 1;
+        }
+    }
+</style>
