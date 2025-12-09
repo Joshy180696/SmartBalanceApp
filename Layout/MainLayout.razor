@@ -24,7 +24,12 @@
     <RadzenSidebar Responsive="false" Style="width: max-content">
         <RadzenPanelMenu DisplayStyle="@(sidebarExpanded ? MenuItemDisplayStyle.IconAndText : MenuItemDisplayStyle.Icon)" ShowArrow="false">
             <RadzenPanelMenuItem Text="Home" Icon="home" Path="/home" />
-            <RadzenPanelMenuItem Text="Dashboard" Icon="dashboard" Path="/dashboard" />
+
+            <RadzenPanelMenuItem Text="Dashboard" Icon="space_dashboard">
+                <RadzenPanelMenuItem Text="Financial Overview" Icon="monitoring" Path="/dashboard" />
+                <RadzenPanelMenuItem Text="Expenses Overview" Icon="receipt_long" Path="/expenses" />
+            </RadzenPanelMenuItem>
+
             <RadzenPanelMenuItem Text="Settings" Icon="settings">
                 <RadzenPanelMenuItem Text="Account" Icon="account_circle" Path="/account" />
             </RadzenPanelMenuItem>

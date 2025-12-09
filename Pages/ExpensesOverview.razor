@@ -1,0 +1,316 @@
+﻿@page "/expenses"
+@using Microsoft.AspNetCore.Authorization
+@using SmartBalanceBlazor.Auth
+@using SmartBalanceBlazor.ViewModels.Dashboard
+@using System.Security.Claims
+@using System.Text
+@inject NavigationManager Navigation
+@using static SmartBalanceBlazor.ViewModels.AccountViewModels
+@inject IHttpClientFactory HttpClientFactory
+@inject JwtAuthenticationStateProvider AuthProvider
+@inject NotificationService NotificationService
+@inject IJSRuntime JSRuntime
+@attribute [Authorize]
+
+<PageTitle>Expenses Overview - SmartBalance</PageTitle>
+
+<RadzenStack Gap="2rem" Class="rz-p-4 rz-p-md-8">
+
+    <!-- Header -->
+    <div class="rz-text-align-center rz-my-6">
+        <RadzenText TextStyle="TextStyle.H3" Class="rz-mb-2" Style="color: #3f51b5;">
+            <b>Expenses Overview</b>
+        </RadzenText>
+    </div>
+
+    <!-- Loading Spinner -->
+    @if (isLoading)
+    {
+        <div class="rz-text-align-center rz-py-16">
+            <RadzenProgressBarCircular Size="ProgressBarCircularSize.Large"
+                                       ShowValue="false"
+                                       Style="width: 80px; height: 80px;" />
+            <RadzenText TextStyle="TextStyle.H6" Class="rz-mt-6" Style="color: #555; font-weight: 500;">
+                Loading your expenses overview...
+            </RadzenText>
+            <div class="loading-dots rz-mt-4">
+                <span></span><span></span><span></span>
+            </div>
+        </div>
+    }
+    else if (expensesOverview == null || !expensesOverview.Success)
+    {
+        <RadzenAlert AlertStyle="AlertStyle.Danger" Variant="Variant.Filled" Shade="Shade.Lighter" Class="rz-my-6">
+            <b>Oops!</b> @(expensesOverview?.ErrorMessage ?? "Failed to load expenses.")
+            <RadzenButton Text="Retry" Click="@LoadTable" Variant="Variant.Flat" Shade="Shade.Lighter" Class="rz-ml-4" />
+        </RadzenAlert>
+    }
+    else if (!expensesOverview.HasData)
+    {
+        <RadzenCard Class="rz-shadow-3 rz-border-radius-3 rz-p-10 rz-text-align-center">
+            <RadzenIcon Icon="info" Style="font-size: 4rem; color: #6366f1; opacity: 0.7;" />
+            <RadzenText TextStyle="TextStyle.H6" Class="rz-mt-4 rz-mb-2">
+                No expenses found
+            </RadzenText>
+            <RadzenText TextStyle="TextStyle.Body1" Class="rz-opacity-70 rz-mb-6">
+                Start tracking your spending today!
+            </RadzenText>
+            <RadzenButton Text="Add Your First Expense"
+                          Icon="add_circle"
+                          ButtonStyle="ButtonStyle.Success"
+                          Size="ButtonSize.Medium"
+                          Click="@AddExpenses" />
+        </RadzenCard>
+    }
+    else
+    {
+        <RadzenCard Class="rz-shadow-4 rz-border-radius-3">
+            <!-- Header with Total + Buttons -->
+            <RadzenStack Orientation="Orientation.Horizontal"
+                         JustifyContent="JustifyContent.SpaceBetween"
+                         AlignItems="AlignItems.Center"
+                         Class="rz-px-8 rz-pt-6 rz-pb-4 rz-border-bottom">
+                <div>
+                    <RadzenText TextStyle="TextStyle.H5" Class="rz-mb-1">
+                        <b>Total Spent</b>
+                    </RadzenText>
+                    <RadzenText TextStyle="TextStyle.H4" Style="color: #d32f2f;">
+                        @expensesOverview.Expenses?.Sum(e => e.Total).ToString("N0") €
+                    </RadzenText>
+                </div>
+                <RadzenStack Orientation="Orientation.Horizontal" Gap="1rem">
+                    <RadzenButton Text="Add Expense"
+                                  Icon="add_circle"
+                                  ButtonStyle="ButtonStyle.Success"
+                                  Size="ButtonSize.Medium"
+                                  Click="@AddExpenses" />
+
+                    <RadzenButton Text="Export to CSV"
+                                  Icon="download"
+                                  ButtonStyle="ButtonStyle.Secondary"
+                                  Size="ButtonSize.Medium"
+                                  Click="@ExportToCsv" />
+
+                    <RadzenButton Text="Refresh"
+                                  Icon="refresh"
+                                  ButtonStyle="ButtonStyle.Primary"
+                                  Size="ButtonSize.Medium"
+                                  Click="@LoadTable" />
+                </RadzenStack>
+            </RadzenStack>
+
+            <!-- DataGrid with Search, Sort, Pagination -->
+            <RadzenDataGrid Data="@expensesOverview.Expenses"
+                            TItem="TotalExpenses"
+                            AllowFiltering="true"
+                            AllowPaging="true"
+                            PageSize="5"
+                            AllowSorting="true"
+                            FilterCaseSensitivity="FilterCaseSensitivity.CaseInsensitive"
+                            FilterMode="FilterMode.Simple"
+                            PagerHorizontalAlign="HorizontalAlign.Center"
+                            Class="expenses-grid">
+
+                <Columns>
+
+                    <RadzenDataGridColumn TItem="TotalExpenses" Property="Day" Title="Day" Width="80px" />
+
+                    <RadzenDataGridColumn TItem="TotalExpenses" Property="MonthName" Title="Month" Width="120px">
+                        <Template Context="data">
+                            <strong>@data.MonthName</strong>
+                        </Template>
+                    </RadzenDataGridColumn>
+
+                    <RadzenDataGridColumn TItem="TotalExpenses" Property="Year" Title="Year" Width="100px" />
+
+                    <RadzenDataGridColumn TItem="TotalExpenses" Property="Description" Title="Description" />
+
+                    <RadzenDataGridColumn TItem="TotalExpenses" Property="Total" Title="Total Spent" Width="160px">
+                        <Template Context="data">
+                            <span style="color: #d32f2f; font-weight: 600; font-size: 1.1rem;">
+                                @($"{data.Total:N0} €")
+                            </span>
+                        </Template>
+                    </RadzenDataGridColumn>
+                </Columns>
+            </RadzenDataGrid>
+        </RadzenCard>
+    }
+</RadzenStack>
+
+@code {
+    private DashboardExpensesResponse? expensesOverview;
+    private string userId = string.Empty;
+    private bool isLoading = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthProvider.GetAuthenticationStateAsync();
+        var user = authState.User;
+
+        if (!user.Identity?.IsAuthenticated ?? false)
+        {
+            Navigation.NavigateTo("/login");
+            return;
+        }
+
+        userId = user.FindFirst(c => c.Type == ClaimTypes.NameIdentifier || c.Type == "sub")?.Value ?? "";
+        if (string.IsNullOrEmpty(userId))
+        {
+            Navigation.NavigateTo("/login");
+            return;
+        }
+
+        await LoadTable();
+    }
+
+    private async Task LoadTable()
+    {
+        isLoading = true;
+        StateHasChanged();
+
+        try
+        {
+            var client = HttpClientFactory.CreateClient("SmartBalanceApi");
+            var response = await client.GetAsync($"api/Dashboard/expenses/{userId}");
+
+            if (response.IsSuccessStatusCode)
+            {
+                expensesOverview = await response.Content.ReadFromJsonAsync<DashboardExpensesResponse>();
+            }
+            else if (response.StatusCode == System.Net.HttpStatusCode.Unauthorized)
+            {
+                NotificationService.Notify(NotificationSeverity.Warning, "Session expired", "Logging out...");
+                await Task.Delay(1500);
+                await AuthProvider.LogoutAsync();
+                Navigation.NavigateTo("/login", forceLoad: true);
+            }
+        }
+        catch (Exception ex)
+        {
+            NotificationService.Notify(NotificationSeverity.Error, "Network Error", ex.Message);
+        }
+        finally
+        {
+            isLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task ExportToCsv()
+    {
+        if (expensesOverview?.Expenses == null || !expensesOverview.Expenses.Any()) return;
+
+        var sb = new StringBuilder();
+        sb.AppendLine("Month,Year,Category,Total Spent");
+
+        foreach (var e in expensesOverview.Expenses)
+        {
+            sb.AppendLine($"{e.MonthName},{e.Year},{e.Description},{e.Total:N0}");
+        }
+
+        var csvContent = sb.ToString();
+        var fileName = $"expenses_{DateTime.Now:yyyy-MM-dd}.csv";
+
+
+        await JSRuntime.InvokeVoidAsync("downloadFile", fileName, "text/csv", csvContent);
+        NotificationService.Notify(NotificationSeverity.Success, "Exported!", "CSV file downloaded.");
+    }
+
+    private void AddExpenses()
+    {
+        Navigation.NavigateTo("/home");
+    }
+}
+
+<style>
+    /* Premium purple header */
+    .expenses-grid .rz-datatable-header {
+        background: linear-gradient(135deg, #6366f1, #8b5cf6) !important;
+        color: white !important;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        font-size: 0.9rem;
+    }
+
+    /* Striped rows + hover */
+    .expenses-grid .rz-datatable-data tr:nth-child(even) {
+        background: rgba(99, 102, 241, 0.04);
+    }
+
+    .expenses-grid .rz-datatable-data tr:hover {
+        background: rgba(99, 102, 241, 0.12) !important;
+        transition: background 0.2s ease;
+    }
+
+ 
+    .expenses-grid .rz-datatable-data td {
+        padding: 1.2rem 1.5rem !important;
+        vertical-align: middle;
+    }
+
+    /* Search bar styling */
+    .expenses-grid .rz-datatable-filter input {
+        border-radius: 8px;
+        border: 1px solid #ddd;
+        padding: 0.5rem 1rem;
+    }
+
+    /* Pagination styling */
+    .expenses-grid .rz-paginator {
+        background: transparent;
+        padding: 1rem;
+        border-top: 1px solid #eee;
+    }
+
+    /* Loading dots */
+    .loading-dots span {
+        display: inline-block;
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        background: #6366f1;
+        margin: 0 5px;
+        animation: dotPulse 1.4s infinite ease-in-out both;
+    }
+
+        .loading-dots span:nth-child(1) {
+            animation-delay: -0.32s;
+        }
+
+        .loading-dots span:nth-child(2) {
+            animation-delay: -0.16s;
+        }
+
+        .loading-dots span:nth-child(3) {
+            animation-delay: 0s;
+        }
+
+    @@keyframes dotPulse {
+        0%, 80%, 100% {
+            transform: scale(0.6);
+            opacity: 0.5;
+        }
+
+        40% {
+            transform: scale(1);
+            opacity: 1;
+        }
+    }
+</style>
+
+<script>
+        window.downloadFile = (fileName, contentType, content) => {
+        const blob = new Blob([content], { type: contentType });
+        const url = URL.createObjectURL(blob);
+
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = fileName;
+        a.click();
+
+        URL.revokeObjectURL(url);
+    };
+</script>
+      
